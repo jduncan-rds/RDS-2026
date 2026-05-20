@@ -62,10 +62,13 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
 <template>
   <div>
     <!-- Page header -->
-    <div class="max-w-7xl mx-auto px-6 lg:px-10 pt-16 pb-10">
+    <div class="max-w-7xl mx-auto px-6 lg:px-10 pt-16">
       <p class="font-ui text-xs tracking-widest uppercase text-brown/50 mb-3">The Collection</p>
       <h1 class="font-heading text-5xl md:text-6xl text-brown">Original Artwork</h1>
     </div>
+
+    <!-- Spacer -->
+    <div style="height: 20px;" />
 
     <!-- Sticky filter bar -->
     <div class="sticky top-16 lg:top-20 z-40 bg-cream border-y border-brown/10">
