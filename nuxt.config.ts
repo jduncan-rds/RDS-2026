@@ -18,12 +18,14 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxt/eslint',
     '@nuxtjs/sanity',
+    '@pinia/nuxt',
+    '@pinia-plugin-persistedstate/nuxt',
   ],
   sanity: {
     projectId: process.env.NUXT_SANITY_PROJECT_ID,
     dataset: process.env.NUXT_SANITY_DATASET ?? 'production',
     apiVersion: '2025-05-20',
-    useCdn: true,
+    useCdn: process.env.NODE_ENV === 'production',
   },
   runtimeConfig: {
     sanityApiToken: process.env.SANITY_API_TOKEN,

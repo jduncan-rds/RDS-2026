@@ -1,0 +1,306 @@
+<script setup lang="ts">
+import groq from 'groq'
+
+const route = useRoute()
+const slug = route.params.slug as string
+
+const { data: product } = await useSanityQuery(groq`
+  *[_type == "product" && artwork->slug.current == $slug][0] {
+    _id,
+    productType,
+    originalPrice,
+    variants,
+    artwork->{
+      title,
+      "slug": slug.current,
+      images,
+      medium,
+      dimensions,
+      year,
+      description,
+      artistNotes,
+      status
+    }
+  }
+`, { slug })
+
+const { data: frames } = await useSanityQuery(groq`
+  *[_type == "frame"] | order(displayOrder asc) {
+    _id, name, barImage, thumbnail, priceModifier
+  }
+`)
+
+if (!product.value) {
+  throw createError({ statusCode: 404, statusMessage: 'Product not found' })
+}
+
+const artwork = computed(() => product.value?.artwork)
+const isOriginal = computed(() => product.value?.productType === 'original')
+
+// Image gallery
+const activeImageIndex = ref(0)
+const activeImage = computed(() => artwork.value?.images?.[activeImageIndex.value] ?? null)
+
+// Product options
+const mediaTypes = [
+  { value: 'open_edition', label: 'Open Edition Print' },
+  { value: 'pod_paper', label: 'Custom Print' },
+  { value: 'pod_canvas', label: 'Custom Canvas' },
+]
+
+const availableMediaTypes = computed(() =>
+  mediaTypes.filter((mt) =>
+    product.value?.variants?.some((v: any) => v.mediaType === mt.value && v.inStock !== false),
+  ),
+)
+
+const selectedMediaType = ref<string>(availableMediaTypes.value[0]?.value ?? 'open_edition')
+const selectedSize = ref<string | null>(null)
+const selectedFrameId = ref<string | null>(null)
+const quantity = ref(1)
+
+const availableSizes = computed(() =>
+  (product.value?.variants ?? []).filter(
+    (v: any) => v.mediaType === selectedMediaType.value && v.inStock !== false,
+  ),
+)
+
+watch(selectedMediaType, () => { selectedSize.value = null })
+watch(availableSizes, (sizes) => {
+  if (sizes.length === 1) selectedSize.value = sizes[0].size
+}, { immediate: true })
+
+const selectedVariant = computed(() =>
+  availableSizes.value.find((v: any) => v.size === selectedSize.value) ?? null,
+)
+
+const selectedFrame = computed(() =>
+  frames.value?.find((f: any) => f._id === selectedFrameId.value) ?? null,
+)
+
+const displayPrice = computed(() => {
+  if (isOriginal.value) return product.value?.originalPrice ?? null
+  if (!selectedVariant.value) return null
+  return selectedVariant.value.price + (selectedFrame.value?.priceModifier ?? 0)
+})
+
+// Add to cart
+const cart = useCartStore()
+const addedToCart = ref(false)
+
+function addToCart() {
+  if (!product.value || !artwork.value) return
+  if (!isOriginal.value && !selectedVariant.value) return
+
+  const imageUrl = artwork.value.images?.[0]
+    ? useSanityImageUrl(artwork.value.images[0]).width(400).auto('format').url()
+    : ''
+
+  cart.add({
+    productId: product.value._id,
+    artworkSlug: artwork.value.slug,
+    title: artwork.value.title,
+    imageUrl,
+    mediaType: isOriginal.value ? 'original' : selectedMediaType.value as any,
+    size: isOriginal.value ? null : selectedSize.value,
+    frameId: selectedFrameId.value,
+    frameName: selectedFrame.value?.name ?? null,
+    quantity: quantity.value,
+    unitPrice: displayPrice.value ?? 0,
+  })
+
+  addedToCart.value = true
+  setTimeout(() => { addedToCart.value = false }, 2500)
+}
+
+useSeoMeta({
+  title: computed(() => `${artwork.value?.title ?? 'Artwork'} — Robert Duncan Fine Art`),
+  description: computed(() => `${artwork.value?.title} by Robert Duncan. ${artwork.value?.medium ?? ''}`),
+})
+</script>
+
+<template>
+  <div class="max-w-7xl mx-auto px-6 lg:px-10 py-12 lg:py-20">
+    <div class="grid lg:grid-cols-2 gap-12 lg:gap-20 items-start">
+
+      <!-- Image gallery -->
+      <div class="lg:sticky lg:top-28">
+        <ArtworkFrame :frame="selectedFrame" :frame-width="30">
+          <SanityImage
+            v-if="activeImage"
+            :image="activeImage"
+            :alt="artwork?.title ?? ''"
+            :width="900"
+            fit="crop"
+            aspect-ratio="4/5"
+            class="w-full"
+          />
+          <div v-else class="w-full aspect-[4/5] bg-brown/10" />
+        </ArtworkFrame>
+
+        <!-- Thumbnails -->
+        <div v-if="(artwork?.images?.length ?? 0) > 1" class="flex gap-2 mt-4">
+          <button
+            v-for="(img, i) in artwork.images"
+            :key="i"
+            type="button"
+            :class="[
+              'w-16 h-16 overflow-hidden border transition-all duration-200',
+              i === activeImageIndex ? 'border-brown' : 'border-transparent opacity-60 hover:opacity-100',
+            ]"
+            @click="activeImageIndex = i"
+          >
+            <SanityImage :image="img" :alt="`View ${i + 1}`" :width="120" fit="crop" aspect-ratio="1/1" class="w-full h-full object-cover" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Product details -->
+      <div>
+        <!-- Breadcrumb -->
+        <nav class="mb-6">
+          <NuxtLink to="/shop" class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors">
+            Shop
+          </NuxtLink>
+          <span class="font-ui text-xs text-brown/20 mx-2">/</span>
+          <span class="font-ui text-xs tracking-widest uppercase text-brown/60">{{ artwork?.title }}</span>
+        </nav>
+
+        <!-- Title + meta -->
+        <h1 class="font-heading text-4xl md:text-5xl text-brown mb-3">{{ artwork?.title }}</h1>
+        <p v-if="artwork?.medium || artwork?.dimensions" class="font-body text-brown/50 mb-8">
+          {{ [artwork.medium, artwork.dimensions, artwork.year].filter(Boolean).join(' · ') }}
+        </p>
+
+        <!-- Original: simple price + buy -->
+        <template v-if="isOriginal">
+          <p class="font-heading text-3xl text-brown mb-8">
+            ${{ product?.originalPrice?.toLocaleString() }}
+          </p>
+          <div v-if="artwork?.status === 'available'">
+            <AppButton variant="primary" size="lg" class="w-full sm:w-auto" @click="addToCart">
+              {{ addedToCart ? 'Added to Cart ✓' : 'Add to Cart' }}
+            </AppButton>
+          </div>
+          <p v-else class="font-ui text-xs tracking-widest uppercase text-brown/40">This piece has been sold.</p>
+        </template>
+
+        <!-- Print: full selector UI -->
+        <template v-else>
+          <!-- Media type selector -->
+          <div class="mb-8">
+            <p class="font-ui text-xs tracking-widest uppercase text-brown/60 mb-3">Print Type</p>
+            <div class="flex flex-wrap gap-3">
+              <button
+                v-for="mt in availableMediaTypes"
+                :key="mt.value"
+                type="button"
+                :class="[
+                  'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200',
+                  selectedMediaType === mt.value
+                    ? 'bg-brown text-cream border-brown'
+                    : 'bg-transparent text-brown border-brown/30 hover:border-brown',
+                ]"
+                @click="selectedMediaType = mt.value"
+              >
+                {{ mt.label }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Size selector -->
+          <div class="mb-8">
+            <p class="font-ui text-xs tracking-widest uppercase text-brown/60 mb-3">Size</p>
+            <div class="flex flex-wrap gap-3">
+              <button
+                v-for="variant in availableSizes"
+                :key="variant.size"
+                type="button"
+                :class="[
+                  'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200',
+                  selectedSize === variant.size
+                    ? 'bg-brown text-cream border-brown'
+                    : 'bg-transparent text-brown border-brown/30 hover:border-brown',
+                ]"
+                @click="selectedSize = variant.size"
+              >
+                {{ variant.size }}
+              </button>
+            </div>
+            <p v-if="!availableSizes.length" class="font-body text-sm text-brown/40 italic mt-2">
+              No sizes available for this print type.
+            </p>
+          </div>
+
+          <!-- Frame picker -->
+          <div v-if="frames?.length" class="mb-8">
+            <FramePicker
+              :frames="frames"
+              :selected-id="selectedFrameId"
+              @select="selectedFrameId = $event"
+            />
+          </div>
+
+          <!-- Quantity -->
+          <div class="mb-8">
+            <p class="font-ui text-xs tracking-widest uppercase text-brown/60 mb-3">Quantity</p>
+            <div class="flex items-center gap-4">
+              <button
+                type="button"
+                class="w-8 h-8 border border-brown/30 hover:border-brown transition-colors flex items-center justify-center font-ui text-brown disabled:opacity-30"
+                :disabled="quantity <= 1"
+                @click="quantity = Math.max(1, quantity - 1)"
+              >
+                −
+              </button>
+              <span class="font-ui text-sm w-6 text-center">{{ quantity }}</span>
+              <button
+                type="button"
+                class="w-8 h-8 border border-brown/30 hover:border-brown transition-colors flex items-center justify-center font-ui text-brown"
+                @click="quantity++"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <!-- Price + Add to cart -->
+          <div class="border-t border-brown/10 pt-8">
+            <div class="flex items-baseline justify-between mb-6">
+              <p class="font-ui text-xs tracking-widest uppercase text-brown/50">Total</p>
+              <p class="font-heading text-3xl text-brown">
+                {{ displayPrice ? `$${(displayPrice * quantity).toLocaleString()}` : '—' }}
+              </p>
+            </div>
+            <AppButton
+              variant="primary"
+              size="lg"
+              class="w-full"
+              :disabled="!selectedSize || !displayPrice"
+              @click="addToCart"
+            >
+              {{ addedToCart ? 'Added to Cart ✓' : 'Add to Cart' }}
+            </AppButton>
+            <p v-if="!selectedSize" class="mt-3 font-ui text-xs text-brown/40 text-center">
+              Please select a size
+            </p>
+          </div>
+        </template>
+
+        <!-- Description -->
+        <div v-if="artwork?.description" class="mt-12 pt-12 border-t border-brown/10">
+          <h2 class="font-heading text-2xl text-brown mb-4">About this piece</h2>
+          <div class="font-body text-brown/70 leading-relaxed space-y-3">
+            <SanityContent :blocks="artwork.description" />
+          </div>
+        </div>
+
+        <!-- Artist notes -->
+        <div v-if="artwork?.artistNotes" class="mt-8 p-6 bg-brown/5">
+          <p class="font-ui text-xs tracking-widest uppercase text-brown/40 mb-2">Artist Notes</p>
+          <p class="font-body text-brown/70 italic leading-relaxed">{{ artwork.artistNotes }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

@@ -97,6 +97,34 @@ async function seed() {
     console.log('  Created test artwork')
   }
 
+  // Test product linked to test artwork
+  console.log('Creating test product...')
+  const artworkId = await client.fetch(
+    `*[_type == "artwork" && slug.current == $slug][0]._id`,
+    { slug: testArtworkSlug },
+  )
+  const existingProduct = await client.fetch(
+    `*[_type == "product" && artwork._ref == $id][0]._id`,
+    { id: artworkId },
+  )
+  if (existingProduct) {
+    console.log('  Skipping test product (already exists)')
+  } else if (artworkId) {
+    await client.create({
+      _type: 'product',
+      artwork: { _type: 'reference', _ref: artworkId },
+      productType: 'print',
+      variants: [
+        { _key: 'oe-8x10', mediaType: 'open_edition', size: '8x10', price: 45, inStock: true },
+        { _key: 'oe-11x14', mediaType: 'open_edition', size: '11x14', price: 65, inStock: true },
+        { _key: 'oe-16x20', mediaType: 'open_edition', size: '16x20', price: 95, inStock: true },
+        { _key: 'pod-paper-11x14', mediaType: 'pod_paper', size: '11x14', price: 75, inStock: true },
+        { _key: 'pod-canvas-16x20', mediaType: 'pod_canvas', size: '16x20', price: 145, inStock: true },
+      ],
+    })
+    console.log('  Created test product')
+  }
+
   console.log('\nSeed complete.')
 }
 

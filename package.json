@@ -16,11 +16,14 @@
   },
   "dependencies": {
     "@nuxtjs/sanity": "^2.3.0",
+    "@pinia-plugin-persistedstate/nuxt": "^1.2.1",
+    "@pinia/nuxt": "^0.11.3",
     "@portabletext/vue": "^1.0.14",
     "@sanity/image-url": "^2.1.1",
     "@sanity/vision": "^5.26.0",
     "@supabase/supabase-js": "^2.106.1",
     "nuxt": "^3.21.6",
+    "pinia": "^3.0.4",
     "sanity": "^5.26.0",
     "vue": "^3.5.34",
     "vue-router": "^5.0.7"

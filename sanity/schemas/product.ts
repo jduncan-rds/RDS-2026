@@ -49,8 +49,8 @@ export const product = defineType({
               options: {
                 list: [
                   { title: 'Open Edition Print', value: 'open_edition' },
-                  { title: 'POD Paper', value: 'pod_paper' },
-                  { title: 'POD Canvas', value: 'pod_canvas' },
+                  { title: 'Custom Print', value: 'pod_paper' },
+                  { title: 'Custom Canvas', value: 'pod_canvas' },
                 ],
               },
               validation: (r) => r.required(),
@@ -84,8 +84,8 @@ export const product = defineType({
             prepare({ mediaType, size, price }) {
               const labels: Record<string, string> = {
                 open_edition: 'Open Edition',
-                pod_paper: 'POD Paper',
-                pod_canvas: 'POD Canvas',
+                pod_paper: 'Custom Print',
+                pod_canvas: 'Custom Canvas',
               }
               return {
                 title: `${labels[mediaType] ?? mediaType} — ${size}`,
