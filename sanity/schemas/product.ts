@@ -57,10 +57,23 @@ export const product = defineType({
             }),
             defineField({
               name: 'size',
-              title: 'Size',
+              title: 'Size (inches)',
               type: 'string',
-              placeholder: 'e.g. 11x14',
-              validation: (r) => r.required(),
+              placeholder: 'e.g. 11x14 or 14.375x22',
+              description:
+                'Width × height in inches as decimals. Use 14.375, not 14 3/8 — fractions are not allowed and would mis-price the print.',
+              validation: (r) =>
+                r
+                  .required()
+                  .custom((val) => {
+                    if (typeof val !== 'string') return 'Required'
+                    // Mirror parseSize(): two bare decimals separated by x/×,
+                    // optional spaces and inch marks. Rejects fractions and text.
+                    if (!/^\s*\d+(\.\d+)?"?\s*[x×]\s*\d+(\.\d+)?"?\s*$/i.test(val)) {
+                      return 'Use WIDTHxHEIGHT in decimal inches, e.g. "14.375 x 22". Fractions like "14 3/8" are not allowed.'
+                    }
+                    return true
+                  }),
             }),
             defineField({
               name: 'price',

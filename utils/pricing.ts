@@ -15,12 +15,23 @@ export interface FramePricingData {
 }
 
 export function parseSize(size: string): { w: number; h: number } | null {
+  if (typeof size !== 'string') return null
   const normalized = size.replace(/"/g, '').replace(/×/g, 'x').toLowerCase().trim()
   const parts = normalized.split(/\s*x\s*/)
   if (parts.length !== 2) return null
-  const w = parseFloat(parts[0])
-  const h = parseFloat(parts[1])
-  if (isNaN(w) || isNaN(h) || w <= 0 || h <= 0 || w > 120 || h > 120) return null
+
+  // Each dimension must be a clean decimal — no fractions ("3/8"), mixed
+  // numbers ("14 3/8"), or trailing text. parseFloat would silently read
+  // "14 3/8" as 14, so we reject anything that isn't a bare number rather
+  // than let a wrong size flow into a real price.
+  const decimal = /^\d+(\.\d+)?$/
+  const rawW = parts[0].trim()
+  const rawH = parts[1].trim()
+  if (!decimal.test(rawW) || !decimal.test(rawH)) return null
+
+  const w = parseFloat(rawW)
+  const h = parseFloat(rawH)
+  if (w <= 0 || h <= 0 || w > 120 || h > 120) return null
   return { w, h }
 }
 
