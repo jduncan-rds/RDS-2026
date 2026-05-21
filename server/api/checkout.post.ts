@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { createSanityClient } from '../utils/sanity'
+import { createSupabaseAdmin } from '../utils/supabase'
 import { computeVariantPrice, computeFrameModifier } from '../../utils/pricing'
 import type { PricingRules, FramePricingData, PrintMediaType } from '../../utils/pricing'
 
@@ -40,7 +41,7 @@ export default defineEventHandler(async (event) => {
 
   const [products, frames, rules] = await Promise.all([
     sanity.fetch<any[]>(
-      `*[_type == "product" && _id in $ids] { _id, originalPrice, variants[] { mediaType, size, price } }`,
+      `*[_type == "product" && _id in $ids] { _id, originalPrice, "artworkStatus": artwork->status, variants[] { mediaType, size, price } }`,
       { ids: productIds },
     ),
     frameIds.length > 0
@@ -67,6 +68,18 @@ export default defineEventHandler(async (event) => {
   const frameMap = Object.fromEntries(frames.map((f) => [f._id, f]))
 
   const lineItems = []
+  // Captured alongside line items so we can write order_items snapshots with
+  // the same authoritative price (in cents) used for the Stripe charge.
+  const orderItemRows: {
+    sanity_product_id: string
+    title_snapshot: string
+    image_url_snapshot: string | null
+    media_type: string
+    size: string | null
+    frame_id: string | null
+    quantity: number
+    unit_price: number
+  }[] = []
 
   for (const item of items) {
     const product = productMap[item.productId]
@@ -81,6 +94,14 @@ export default defineEventHandler(async (event) => {
         throw createError({
           statusCode: 400,
           statusMessage: `Price not set for original: ${item.title}`,
+        })
+      }
+      // Inventory check (Trust Rule #5): originals are one-of-a-kind. Block
+      // checkout unless the artwork is still available.
+      if (product.artworkStatus !== 'available') {
+        throw createError({
+          statusCode: 409,
+          statusMessage: `Sorry, "${item.title}" is no longer available.`,
         })
       }
       unitAmountCents = Math.round(product.originalPrice * 100)
@@ -128,6 +149,43 @@ export default defineEventHandler(async (event) => {
       },
       quantity: item.quantity,
     })
+
+    orderItemRows.push({
+      sanity_product_id: item.productId,
+      title_snapshot: item.title,
+      image_url_snapshot: item.imageUrl || null,
+      media_type: item.mediaType,
+      size: item.size,
+      frame_id: item.frameId,
+      quantity: item.quantity,
+      unit_price: unitAmountCents,
+    })
+  }
+
+  const orderTotalCents = orderItemRows.reduce((sum, r) => sum + r.unit_price * r.quantity, 0)
+
+  // Pre-create the order (Trust Rule #4): write a 'pending' order + items now,
+  // while we still hold the full cart with price/title/image snapshots. The
+  // webhook later flips it to 'confirmed' and fills in buyer email + shipping.
+  const supabase = createSupabaseAdmin()
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert({ status: 'pending', total: orderTotalCents })
+    .select('id')
+    .single()
+
+  if (orderError || !order) {
+    console.error('[checkout] failed to create order', orderError)
+    throw createError({ statusCode: 500, statusMessage: 'Could not start checkout. Please try again.' })
+  }
+
+  const { error: itemsError } = await supabase
+    .from('order_items')
+    .insert(orderItemRows.map((r) => ({ ...r, order_id: order.id })))
+
+  if (itemsError) {
+    console.error('[checkout] failed to create order_items', itemsError)
+    throw createError({ statusCode: 500, statusMessage: 'Could not start checkout. Please try again.' })
   }
 
   const host = getRequestHost(event)
@@ -138,20 +196,12 @@ export default defineEventHandler(async (event) => {
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
+    shipping_address_collection: { allowed_countries: ['US'] },
     success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/checkout/cancel`,
-    metadata: {
-      items: JSON.stringify(
-        items.map((i) => ({
-          productId: i.productId,
-          artworkSlug: i.artworkSlug,
-          mediaType: i.mediaType,
-          size: i.size,
-          frameId: i.frameId,
-          qty: i.quantity,
-        })),
-      ),
-    },
+    // The webhook looks the order up by this id and reads its items from
+    // Supabase — no need to stuff the full cart into metadata (500-char cap).
+    metadata: { orderId: order.id },
   })
 
   return { url: session.url }

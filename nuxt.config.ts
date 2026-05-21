@@ -32,6 +32,9 @@ export default defineNuxtConfig({
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    shipstationApiKey: process.env.SHIPSTATION_API_KEY,
+    shipstationApiSecret: process.env.SHIPSTATION_API_SECRET,
+    ordersNotifyEmail: process.env.ORDERS_NOTIFY_EMAIL,
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
