@@ -27,12 +27,40 @@ export const frame = defineType({
       validation: (r) => r.required(),
     }),
     defineField({
+      name: 'frameRateType',
+      title: 'Frame Pricing Method',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Flat fee (same price regardless of print size)', value: 'flat' },
+          { title: 'Per square inch (scales with print size)', value: 'per_sq_in' },
+        ],
+        layout: 'radio',
+      },
+      initialValue: 'flat',
+      validation: (r) => r.required(),
+    }),
+    defineField({
       name: 'priceModifier',
-      title: 'Price Modifier (USD)',
+      title: 'Flat Fee Upcharge (USD)',
       type: 'number',
-      description: 'Amount added to the base print price. Use 0 for no upcharge.',
+      description: 'Used when pricing method is Flat fee. Set to 0 for no upcharge.',
+      hidden: ({ document }) => document?.frameRateType === 'per_sq_in',
       validation: (r) => r.required().min(0),
       initialValue: 0,
+    }),
+    defineField({
+      name: 'ratePerSqIn',
+      title: 'Rate per sq inch (USD)',
+      type: 'number',
+      description: 'Used when pricing method is Per square inch. e.g. 0.20',
+      hidden: ({ document }) => document?.frameRateType !== 'per_sq_in',
+      validation: (r) =>
+        r.custom((val, ctx) => {
+          if (ctx.document?.frameRateType === 'per_sq_in' && (!val || val <= 0))
+            return 'Required when using per-square-inch pricing'
+          return true
+        }),
     }),
     defineField({
       name: 'displayOrder',

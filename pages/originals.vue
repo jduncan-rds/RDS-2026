@@ -6,8 +6,11 @@ useSeoMeta({
   description: 'Browse original oil paintings by Robert Duncan. Available works, recently sold, and archived pieces.',
 })
 
-const { data: artworks } = await useSanityQuery(groq`
-  *[_type == "artwork" && defined(status)] | order(_createdAt desc) {
+const { data } = await useSanityQuery<{
+  artworks: any[]
+  categories: any[]
+}>(groq`{
+  "artworks": *[_type == "artwork" && defined(status)] | order(_createdAt desc) {
     title,
     "slug": slug.current,
     "image": images[0],
@@ -17,12 +20,12 @@ const { data: artworks } = await useSanityQuery(groq`
     dimensions,
     year,
     "categorySlugs": categories[]->slug.current
-  }
-`)
+  },
+  "categories": *[_type == "category"] | order(name asc) { name, "slug": slug.current }
+}`)
 
-const { data: categories } = await useSanityQuery(groq`
-  *[_type == "category"] | order(name asc) { name, "slug": slug.current }
-`)
+const artworks = computed(() => data.value?.artworks ?? [])
+const categories = computed(() => data.value?.categories ?? [])
 
 const activeCategories = ref<string[]>([])
 const showNewOnly = ref(false)

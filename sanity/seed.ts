@@ -49,11 +49,23 @@ async function seed() {
     console.log(`  Created "${name}"`)
   }
 
-  // Singleton documents (Homepage Settings, Store Banner, Site Settings)
+  // Singleton documents (Homepage Settings, Store Banner, Site Settings, Pricing Rules)
   const singletons = [
     { _id: 'homepageSettings', _type: 'homepageSettings' },
     { _id: 'storeBanner', _type: 'storeBanner', displayStyle: 'single', bannerItems: [] },
     { _id: 'siteSettings', _type: 'siteSettings' },
+    {
+      _id: 'pricingRules',
+      _type: 'pricingRules',
+      openEditionRatePerSqIn: 0.40,
+      podPaperRatePerSqIn: 0.55,
+      podCanvasRatePerSqIn: 0.75,
+      openEditionMinPrice: 25,
+      podPaperMinPrice: 35,
+      podCanvasMinPrice: 50,
+      roundTo: 1,
+      notes: 'Initial rates — adjust in Studio to match your actual margins.',
+    },
   ]
 
   console.log('Creating singletons...')

@@ -33,6 +33,7 @@ onUnmounted(() => {
           :width="1600"
           fit="crop"
           aspect-ratio="unset"
+          :priority="i === 0"
           class="w-full h-full object-cover"
         />
       </div>

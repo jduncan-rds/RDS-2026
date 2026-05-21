@@ -2,6 +2,7 @@ import { artwork } from './artwork'
 import { category } from './category'
 import { frame } from './frame'
 import { homepageSettings } from './homepageSettings'
+import { pricingRules } from './pricingRules'
 import { product } from './product'
 import { siteSettings } from './siteSettings'
 import { storeBanner } from './storeBanner'
@@ -14,4 +15,5 @@ export const schemaTypes = [
   homepageSettings,
   storeBanner,
   siteSettings,
+  pricingRules,
 ]

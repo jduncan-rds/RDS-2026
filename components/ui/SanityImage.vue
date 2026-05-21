@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SanityImageSource } from '@sanity/image-url/lib/types/types'
+import type { SanityImageSource } from '@sanity/image-url'
 
 const props = withDefaults(defineProps<{
   image: SanityImageSource
@@ -8,6 +8,7 @@ const props = withDefaults(defineProps<{
   height?: number
   fit?: 'clip' | 'crop' | 'fill' | 'fillmax' | 'max' | 'scale' | 'min'
   aspectRatio?: string
+  priority?: boolean
 }>(), {
   fit: 'crop',
 })
@@ -32,7 +33,8 @@ const srcset = computed(() => {
     :srcset="srcset"
     :alt="alt"
     :style="aspectRatio ? { aspectRatio, objectFit: 'cover' } : {}"
-    loading="lazy"
+    :loading="priority ? 'eager' : 'lazy'"
+    :fetchpriority="priority ? 'high' : undefined"
     decoding="async"
   />
 </template>

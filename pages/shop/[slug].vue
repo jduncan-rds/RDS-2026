@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import groq from 'groq'
+import { computeVariantPrice, computeFrameModifier } from '~/utils/pricing'
+import type { PricingRules } from '~/utils/pricing'
 
 const route = useRoute()
 const slug = route.params.slug as string
@@ -26,8 +28,12 @@ const { data: product } = await useSanityQuery(groq`
 
 const { data: frames } = await useSanityQuery(groq`
   *[_type == "frame"] | order(displayOrder asc) {
-    _id, name, barImage, thumbnail, priceModifier
+    _id, name, barImage, thumbnail, priceModifier, frameRateType, ratePerSqIn
   }
+`)
+
+const { data: pricingRules } = await useSanityQuery<PricingRules>(groq`
+  *[_id == "pricingRules"][0]
 `)
 
 if (!product.value) {
@@ -80,8 +86,15 @@ const selectedFrame = computed(() =>
 
 const displayPrice = computed(() => {
   if (isOriginal.value) return product.value?.originalPrice ?? null
-  if (!selectedVariant.value) return null
-  return selectedVariant.value.price + (selectedFrame.value?.priceModifier ?? 0)
+  if (!selectedVariant.value || !pricingRules.value) return null
+  const base = computeVariantPrice(
+    selectedMediaType.value as any,
+    selectedVariant.value.size,
+    pricingRules.value,
+    selectedVariant.value.price,
+  )
+  if (base === null) return null
+  return base + computeFrameModifier(selectedFrame.value, selectedVariant.value.size)
 })
 
 // Add to cart

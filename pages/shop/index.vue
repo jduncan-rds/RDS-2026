@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import groq from 'groq'
+import { computeVariantPrice } from '~/utils/pricing'
+import type { PricingRules, PrintMediaType } from '~/utils/pricing'
 
 useSeoMeta({
   title: 'Shop Prints — Robert Duncan Fine Art',
   description: 'Shop fine art prints by Robert Duncan. Open edition and print-on-demand prints, available framed or unframed.',
 })
 
-const { data: products } = await useSanityQuery(groq`
-  *[_type == "product" && productType == "print"] | order(_createdAt desc) {
+const { data } = await useSanityQuery<{
+  products: any[]
+  categories: any[]
+  banner: any
+  pricingRules: PricingRules | null
+}>(groq`{
+  "products": *[_type == "product" && productType == "print"] | order(_createdAt desc) {
     _id,
     variants,
     artwork->{
@@ -17,21 +24,30 @@ const { data: products } = await useSanityQuery(groq`
       isNew,
       "categorySlugs": categories[]->slug.current
     }
-  }
-`)
-
-const { data: categories } = await useSanityQuery(groq`
-  *[_type == "category"] | order(name asc) { name, "slug": slug.current }
-`)
-
-const { data: banner } = await useSanityQuery(groq`
-  *[_type == "storeBanner"][0] {
+  },
+  "categories": *[_type == "category"] | order(name asc) { name, "slug": slug.current },
+  "banner": *[_type == "storeBanner"][0] {
     displayStyle,
     bannerItems[active == true]{ image, textOverlay, linkUrl }
-  }
-`)
+  },
+  "pricingRules": *[_id == "pricingRules"][0]
+}`)
 
-const activeCategories = ref<string[]>([])
+const products = computed(() => data.value?.products ?? [])
+const categories = computed(() => data.value?.categories ?? [])
+const banner = computed(() => data.value?.banner)
+const pricingRules = computed(() => data.value?.pricingRules ?? null)
+
+const route = useRoute()
+const activeCategories = ref<string[]>(
+  route.query.category ? [String(route.query.category)] : [],
+)
+watch(
+  () => route.query.category,
+  (cat) => {
+    activeCategories.value = cat ? [String(cat)] : []
+  },
+)
 const showNewOnly = ref(false)
 const hasActiveFilters = computed(() => activeCategories.value.length > 0 || showNewOnly.value)
 
@@ -54,9 +70,13 @@ const filtered = computed(() => {
   return result
 })
 
-// Starting price for each product (lowest variant price)
+// Starting price for each product (lowest computed variant price)
 function startingPrice(product: any): number | null {
-  const prices = product.variants?.map((v: any) => v.price).filter(Boolean) ?? []
+  const rules = pricingRules.value
+  if (!rules) return null
+  const prices = (product.variants ?? [])
+    .map((v: any) => computeVariantPrice(v.mediaType as PrintMediaType, v.size, rules, v.price))
+    .filter((p: number | null): p is number => p != null)
   return prices.length ? Math.min(...prices) : null
 }
 </script>

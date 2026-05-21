@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { resolveComponent } from 'vue'
+
 defineProps<{
   title: string
   image: object | null
@@ -6,10 +8,12 @@ defineProps<{
   status?: 'available' | 'recently_sold' | 'archived'
   to?: string
 }>()
+
+const NuxtLink = resolveComponent('NuxtLink')
 </script>
 
 <template>
-  <component :is="to ? 'NuxtLink' : 'div'" :to="to" class="group block">
+  <component :is="to ? NuxtLink : 'div'" :to="to" class="group block">
     <div class="relative overflow-hidden bg-brown/5">
       <SanityImage
         v-if="image"

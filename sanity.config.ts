@@ -3,7 +3,7 @@ import { structureTool } from 'sanity/structure'
 import { visionTool } from '@sanity/vision'
 import { schemaTypes } from './sanity/schemas'
 
-const singletons = ['homepageSettings', 'storeBanner', 'siteSettings']
+const singletons = ['homepageSettings', 'storeBanner', 'siteSettings', 'pricingRules']
 
 export default defineConfig({
   name: 'robert-duncan-fine-art',
@@ -58,6 +58,14 @@ export default defineConfig({
                 S.document()
                   .schemaType('siteSettings')
                   .documentId('siteSettings'),
+              ),
+            S.listItem()
+              .title('Pricing Rules')
+              .id('pricingRules')
+              .child(
+                S.document()
+                  .schemaType('pricingRules')
+                  .documentId('pricingRules'),
               ),
           ]),
     }),

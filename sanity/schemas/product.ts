@@ -64,9 +64,10 @@ export const product = defineType({
             }),
             defineField({
               name: 'price',
-              title: 'Price (USD)',
+              title: 'Price Override (USD)',
               type: 'number',
-              validation: (r) => r.required().positive(),
+              description: 'Leave blank to use the per-sq-inch formula from Pricing Rules. Set a value to override the formula for this specific variant.',
+              validation: (r) => r.positive(),
             }),
             defineField({
               name: 'inStock',
@@ -89,7 +90,7 @@ export const product = defineType({
               }
               return {
                 title: `${labels[mediaType] ?? mediaType} — ${size}`,
-                subtitle: price ? `$${price}` : '',
+                subtitle: price ? `$${price} (override)` : 'Formula pricing',
               }
             },
           },
