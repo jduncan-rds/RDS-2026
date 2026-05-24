@@ -40,21 +40,21 @@ export const useFavoritesStore = defineStore('favorites', {
   actions: {
     async toggle(artworkId: string) {
       const supabase = useSupabaseClient()
-      const user = useSupabaseUser()
+      const userId = useAuthedUserId().value
 
-      if (user.value) {
+      if (userId) {
         if (this.serverIds.includes(artworkId)) {
           this.serverIds = this.serverIds.filter((id) => id !== artworkId)
           await supabase
             .from('favorites')
             .delete()
-            .eq('user_id', user.value.id)
+            .eq('user_id', userId)
             .eq('sanity_artwork_id', artworkId)
         } else {
           this.serverIds = [...this.serverIds, artworkId]
           await supabase
             .from('favorites')
-            .insert({ user_id: user.value.id, sanity_artwork_id: artworkId })
+            .insert({ user_id: userId, sanity_artwork_id: artworkId })
         }
         return
       }
@@ -69,13 +69,13 @@ export const useFavoritesStore = defineStore('favorites', {
 
     async hydrateForUser() {
       const supabase = useSupabaseClient()
-      const user = useSupabaseUser()
-      if (!user.value) return
+      const userId = useAuthedUserId().value
+      if (!userId) return
 
       // Merge any guest-collected favorites into the user's account
       if (this.localIds.length > 0) {
         const rows = this.localIds.map((id) => ({
-          user_id: user.value!.id,
+          user_id: userId,
           sanity_artwork_id: id,
         }))
         // upsert avoids duplicate-key errors if the user already favorited
@@ -89,7 +89,7 @@ export const useFavoritesStore = defineStore('favorites', {
       const { data } = await supabase
         .from('favorites')
         .select('sanity_artwork_id')
-        .eq('user_id', user.value.id)
+        .eq('user_id', userId)
 
       this.serverIds = (data || []).map((r) => r.sanity_artwork_id as string)
       this.hydrated = true

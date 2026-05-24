@@ -179,15 +179,22 @@ export default defineEventHandler(async (event) => {
   // associate the order with the user *and* attach a Stripe Customer to the
   // Checkout Session so shipping address + email prefill from prior orders.
   // Guests continue to work exactly as before.
+  //
+  // `serverSupabaseUser` returns the decoded JWT payload — the user id lives
+  // in `sub` (JWT standard), not `id`. Don't reach for `.id` here.
   const supabase = createSupabaseAdmin()
-  const authedUser = await serverSupabaseUser(event).catch(() => null)
+  const authedUser = await serverSupabaseUser(event).catch((err) => {
+    console.error('[checkout] serverSupabaseUser threw:', err)
+    return null
+  })
+  const authedUserId = authedUser?.sub ?? null
 
   let stripeCustomerId: string | null = null
-  if (authedUser) {
+  if (authedUser && authedUserId) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('stripe_customer_id')
-      .eq('id', authedUser.id)
+      .eq('id', authedUserId)
       .single()
 
     if (profile?.stripe_customer_id) {
@@ -198,13 +205,13 @@ export default defineEventHandler(async (event) => {
       // (no `setup_future_usage`), so it only holds email + shipping address.
       const customer = await stripe.customers.create({
         email: authedUser.email,
-        metadata: { supabase_user_id: authedUser.id },
+        metadata: { supabase_user_id: authedUserId },
       })
       stripeCustomerId = customer.id
       await supabase
         .from('profiles')
         .update({ stripe_customer_id: customer.id })
-        .eq('id', authedUser.id)
+        .eq('id', authedUserId)
     }
   }
 
@@ -216,7 +223,7 @@ export default defineEventHandler(async (event) => {
     .insert({
       status: 'pending',
       total: orderTotalCents,
-      user_id: authedUser?.id ?? null,
+      user_id: authedUserId,
     })
     .select('id')
     .single()

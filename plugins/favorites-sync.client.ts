@@ -6,22 +6,19 @@
  * Client-only because it depends on localStorage-persisted store hydration.
  */
 export default defineNuxtPlugin(() => {
-  const user = useSupabaseUser()
+  const userId = useAuthedUserId()
   const favorites = useFavoritesStore()
 
   // Hydrate immediately if user already present (page reload while signed in)
-  if (user.value) {
+  if (userId.value) {
     favorites.hydrateForUser()
   }
 
-  watch(
-    () => user.value?.id,
-    (newId, oldId) => {
-      if (newId && newId !== oldId) {
-        favorites.hydrateForUser()
-      } else if (!newId && oldId) {
-        favorites.clearOnSignOut()
-      }
-    },
-  )
+  watch(userId, (newId, oldId) => {
+    if (newId && newId !== oldId) {
+      favorites.hydrateForUser()
+    } else if (!newId && oldId) {
+      favorites.clearOnSignOut()
+    }
+  })
 })

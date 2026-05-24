@@ -6,6 +6,8 @@ const route = useRoute()
 
 const links = [
   { label: 'Account', to: '/account' },
+  { label: 'Orders', to: '/account/orders' },
+  { label: 'Profile', to: '/account/profile' },
   { label: 'Favorites', to: '/favorites' },
 ]
 
