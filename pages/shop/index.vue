@@ -18,6 +18,7 @@ const { data } = await useSanityQuery<{
     _id,
     variants,
     artwork->{
+      _id,
       title,
       "slug": slug.current,
       "image": images[0],
@@ -151,6 +152,7 @@ function startingPrice(product: any): number | null {
             :title="product.artwork?.title"
             :image="product.artwork?.image"
             :is-new="product.artwork?.isNew"
+            :artwork-id="product.artwork?._id"
             :to="`/shop/${product.artwork?.slug}`"
           />
           <p v-if="startingPrice(product)" class="font-ui text-xs text-brown/50 mt-1">

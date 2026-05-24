@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@nuxtjs/sanity": "^2.3.0",
+    "@nuxtjs/supabase": "^2.0.9",
     "@pinia-plugin-persistedstate/nuxt": "^1.2.1",
     "@pinia/nuxt": "^0.11.3",
     "@portabletext/vue": "^1.0.14",

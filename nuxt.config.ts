@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxt/eslint',
     '@nuxtjs/sanity',
+    '@nuxtjs/supabase',
     '@pinia/nuxt',
     '@pinia-plugin-persistedstate/nuxt',
   ],
@@ -26,6 +27,17 @@ export default defineNuxtConfig({
     dataset: process.env.NUXT_SANITY_DATASET ?? 'production',
     apiVersion: '2025-05-20',
     useCdn: process.env.NODE_ENV === 'production',
+  },
+  supabase: {
+    url: process.env.NUXT_PUBLIC_SUPABASE_URL,
+    key: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
+    redirectOptions: {
+      login: '/login',
+      callback: '/confirm',
+      include: ['/account(/.*)?'],
+      exclude: [],
+      saveRedirectToCookie: true,
+    },
   },
   runtimeConfig: {
     sanityApiToken: process.env.SANITY_API_TOKEN,

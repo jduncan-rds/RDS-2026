@@ -8,6 +8,7 @@ const navLinks = [
 
 const mobileMenuOpen = ref(false)
 const cart = useCartStore()
+const user = useSupabaseUser()
 </script>
 
 <template>
@@ -36,7 +37,22 @@ const cart = useCartStore()
 
         <!-- Actions -->
         <div class="flex items-center gap-4">
-          <NuxtLink to="/account/favorites" class="hidden md:block text-brown/70 hover:text-rust transition-colors" aria-label="Favorites">
+          <NuxtLink
+            v-if="user"
+            to="/account"
+            class="hidden md:flex items-center text-brown/70 hover:text-brown transition-colors font-ui text-xs tracking-widest uppercase"
+            aria-label="Account"
+          >
+            Account
+          </NuxtLink>
+          <NuxtLink
+            v-else
+            to="/login"
+            class="hidden md:flex items-center text-brown/70 hover:text-brown transition-colors font-ui text-xs tracking-widest uppercase"
+          >
+            Log In
+          </NuxtLink>
+          <NuxtLink to="/favorites" class="hidden md:block text-brown/70 hover:text-rust transition-colors" aria-label="Favorites">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
             </svg>
@@ -77,7 +93,28 @@ const cart = useCartStore()
         >
           {{ link.label }}
         </NuxtLink>
-        <NuxtLink to="/account/favorites" class="font-ui text-xs tracking-widest uppercase text-brown/70 hover:text-brown transition-colors py-1" @click="mobileMenuOpen = false">
+        <div class="h-px bg-brown/10 my-1" />
+        <NuxtLink
+          v-if="user"
+          to="/account"
+          class="font-ui text-xs tracking-widest uppercase text-brown/70 hover:text-brown transition-colors py-1"
+          @click="mobileMenuOpen = false"
+        >
+          Account
+        </NuxtLink>
+        <NuxtLink
+          v-else
+          to="/login"
+          class="font-ui text-xs tracking-widest uppercase text-brown/70 hover:text-brown transition-colors py-1"
+          @click="mobileMenuOpen = false"
+        >
+          Log In
+        </NuxtLink>
+        <NuxtLink
+          to="/favorites"
+          class="font-ui text-xs tracking-widest uppercase text-brown/70 hover:text-brown transition-colors py-1"
+          @click="mobileMenuOpen = false"
+        >
           Favorites
         </NuxtLink>
       </div>

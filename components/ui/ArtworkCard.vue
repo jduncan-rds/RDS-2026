@@ -7,6 +7,7 @@ defineProps<{
   isNew?: boolean
   status?: 'available' | 'recently_sold' | 'archived'
   to?: string
+  artworkId?: string
 }>()
 
 const NuxtLink = resolveComponent('NuxtLink')
@@ -28,6 +29,10 @@ const NuxtLink = resolveComponent('NuxtLink')
       <div class="absolute top-3 left-3 flex gap-1.5">
         <BadgeNew v-if="isNew" />
         <BadgeSold v-if="status === 'recently_sold'" />
+      </div>
+
+      <div v-if="artworkId" class="absolute top-3 right-3">
+        <HeartButton :artwork-id="artworkId" />
       </div>
     </div>
 

@@ -11,6 +11,7 @@ const { data } = await useSanityQuery<{
   categories: any[]
 }>(groq`{
   "artworks": *[_type == "artwork" && defined(status)] | order(_createdAt desc) {
+    _id,
     title,
     "slug": slug.current,
     "image": images[0],
@@ -125,6 +126,7 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
             :title="artwork.title"
             :image="artwork.image"
             :is-new="artwork.isNew"
+            :artwork-id="artwork._id"
             status="available"
             :to="`/shop/${artwork.slug}`"
           />
@@ -140,6 +142,7 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
             :key="artwork.slug"
             :title="artwork.title"
             :image="artwork.image"
+            :artwork-id="artwork._id"
             status="recently_sold"
           />
         </div>

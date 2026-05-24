@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import { serverSupabaseUser } from '#supabase/server'
 import { createSanityClient } from '../utils/sanity'
 import { createSupabaseAdmin } from '../utils/supabase'
 import { computeVariantPrice, computeFrameModifier } from '../../utils/pricing'
@@ -164,13 +165,49 @@ export default defineEventHandler(async (event) => {
 
   const orderTotalCents = orderItemRows.reduce((sum, r) => sum + r.unit_price * r.quantity, 0)
 
+  // Auth context (Phase 8): if the request carries a Supabase session, we
+  // associate the order with the user *and* attach a Stripe Customer to the
+  // Checkout Session so shipping address + email prefill from prior orders.
+  // Guests continue to work exactly as before.
+  const supabase = createSupabaseAdmin()
+  const authedUser = await serverSupabaseUser(event).catch(() => null)
+
+  let stripeCustomerId: string | null = null
+  if (authedUser) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('stripe_customer_id')
+      .eq('id', authedUser.id)
+      .single()
+
+    if (profile?.stripe_customer_id) {
+      stripeCustomerId = profile.stripe_customer_id
+    } else {
+      // First authed checkout — create a Stripe Customer and save the id back
+      // to the profile. We do NOT save payment methods on this customer
+      // (no `setup_future_usage`), so it only holds email + shipping address.
+      const customer = await stripe.customers.create({
+        email: authedUser.email,
+        metadata: { supabase_user_id: authedUser.id },
+      })
+      stripeCustomerId = customer.id
+      await supabase
+        .from('profiles')
+        .update({ stripe_customer_id: customer.id })
+        .eq('id', authedUser.id)
+    }
+  }
+
   // Pre-create the order (Trust Rule #4): write a 'pending' order + items now,
   // while we still hold the full cart with price/title/image snapshots. The
   // webhook later flips it to 'confirmed' and fills in buyer email + shipping.
-  const supabase = createSupabaseAdmin()
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .insert({ status: 'pending', total: orderTotalCents })
+    .insert({
+      status: 'pending',
+      total: orderTotalCents,
+      user_id: authedUser?.id ?? null,
+    })
     .select('id')
     .single()
 
@@ -192,7 +229,7 @@ export default defineEventHandler(async (event) => {
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
   const baseUrl = `${protocol}://${host}`
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
@@ -202,7 +239,17 @@ export default defineEventHandler(async (event) => {
     // The webhook looks the order up by this id and reads its items from
     // Supabase — no need to stuff the full cart into metadata (500-char cap).
     metadata: { orderId: order.id },
-  })
+  }
+
+  if (stripeCustomerId) {
+    sessionParams.customer = stripeCustomerId
+    // Save addresses entered at checkout back to the Customer so the next
+    // visit prefills them. `shipping: 'auto'` writes the shipping address;
+    // `name: 'auto'` writes the billing name.
+    sessionParams.customer_update = { shipping: 'auto', name: 'auto' }
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams)
 
   return { url: session.url }
 })
