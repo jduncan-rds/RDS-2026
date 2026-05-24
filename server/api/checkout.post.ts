@@ -135,15 +135,25 @@ export default defineEventHandler(async (event) => {
       unitAmountCents = Math.round((base + frameModifier) * 100)
     }
 
-    const nameParts = [item.title]
-    if (item.size) nameParts.push(item.size)
-    if (item.frameName) nameParts.push(item.frameName)
+    const mediaTypeLabel: Record<string, string> = {
+      original: 'Original Painting',
+      open_edition: 'Open Edition Print',
+      pod_paper: 'Custom Print',
+      pod_canvas: 'Custom Canvas',
+    }
+
+    const descriptionParts: string[] = [mediaTypeLabel[item.mediaType] ?? item.mediaType]
+    if (item.size) descriptionParts.push(item.size)
+    if (item.mediaType !== 'original') {
+      descriptionParts.push(`Frame: ${item.frameName ?? 'Unframed'}`)
+    }
 
     lineItems.push({
       price_data: {
         currency: 'usd',
         product_data: {
-          name: nameParts.join(' · '),
+          name: item.title,
+          description: descriptionParts.join(' · '),
           images: item.imageUrl ? [item.imageUrl] : [],
         },
         unit_amount: unitAmountCents,
