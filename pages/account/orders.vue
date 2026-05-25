@@ -16,7 +16,7 @@ interface OrderItem {
   sanity_product_id: string
   title_snapshot: string
   image_url_snapshot: string | null
-  media_type: 'original' | 'open_edition' | 'pod_paper' | 'pod_canvas'
+  media_type: 'original' | 'open_edition' | 'pod_paper' | 'pod_canvas' | 'simple'
   size: string | null
   frame_id: string | null
   quantity: number
@@ -99,6 +99,7 @@ const mediaTypeLabel: Record<string, string> = {
   open_edition: 'Open Edition Print',
   pod_paper: 'Custom Print',
   pod_canvas: 'Custom Canvas',
+  simple: '',
 }
 
 const statusLabel: Record<string, string> = {
@@ -214,10 +215,15 @@ function formatAddress(addr: Record<string, any> | null): string[] {
               <div v-else class="w-16 h-16 bg-brown/10 shrink-0" />
               <div class="flex-1 min-w-0">
                 <p class="font-heading text-base text-brown">{{ item.title_snapshot }}</p>
-                <p class="font-ui text-xs tracking-widest uppercase text-brown/50 mt-1">
-                  {{ mediaTypeLabel[item.media_type] ?? item.media_type }}
+                <p
+                  v-if="mediaTypeLabel[item.media_type] || item.size || item.media_type !== 'original' && item.media_type !== 'simple'"
+                  class="font-ui text-xs tracking-widest uppercase text-brown/50 mt-1"
+                >
+                  <template v-if="mediaTypeLabel[item.media_type]">
+                    {{ mediaTypeLabel[item.media_type] }}
+                  </template>
                   <template v-if="item.size"> · {{ item.size }}</template>
-                  <template v-if="item.media_type !== 'original'">
+                  <template v-if="item.media_type !== 'original' && item.media_type !== 'simple'">
                     · Frame: {{ frameLabelFor(item) }}
                   </template>
                 </p>

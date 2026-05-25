@@ -6,6 +6,7 @@ const mediaTypeLabel: Record<string, string> = {
   open_edition: 'Open Edition Print',
   pod_paper: 'Custom Print',
   pod_canvas: 'Custom Canvas',
+  simple: '',
 }
 
 const isCheckingOut = ref(false)
@@ -68,8 +69,13 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
             <NuxtLink :to="`/shop/${item.artworkSlug}`" class="font-heading text-lg text-brown hover:text-rust transition-colors">
               {{ item.title }}
             </NuxtLink>
-            <p class="font-ui text-xs tracking-widest uppercase text-brown/50 mt-1">
-              {{ mediaTypeLabel[item.mediaType] ?? item.mediaType }}
+            <p
+              v-if="mediaTypeLabel[item.mediaType] || item.size || item.frameName"
+              class="font-ui text-xs tracking-widest uppercase text-brown/50 mt-1"
+            >
+              <template v-if="mediaTypeLabel[item.mediaType]">
+                {{ mediaTypeLabel[item.mediaType] }}
+              </template>
               <template v-if="item.size"> · {{ item.size }}</template>
               <template v-if="item.frameName"> · {{ item.frameName }}</template>
             </p>

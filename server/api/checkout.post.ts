@@ -32,9 +32,25 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Cart is empty.' })
   }
 
+  // Per-line quantity cap. Higher than any real order we expect (no one's
+  // buying 26 framed prints in one click) and well below anything that would
+  // overflow the integer total column.
+  const MAX_QTY_PER_ITEM = 25
+
   for (const item of items) {
-    if (!item.productId || !item.mediaType || !item.quantity || item.quantity < 1) {
+    if (!item.productId || !item.mediaType) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid cart item.' })
+    }
+    if (
+      typeof item.quantity !== 'number' ||
+      !Number.isInteger(item.quantity) ||
+      item.quantity < 1 ||
+      item.quantity > MAX_QTY_PER_ITEM
+    ) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Quantity must be a whole number between 1 and ${MAX_QTY_PER_ITEM}.`,
+      })
     }
   }
 
@@ -282,9 +298,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Could not start checkout. Please try again.' })
   }
 
+  // Prefer the explicit NUXT_PUBLIC_BASE_URL when set (production). Falling
+  // back to the request Host header lets local dev work without config, but
+  // that header is attacker-controllable behind some proxies — so for the
+  // post-payment redirect URLs handed to Stripe, the env var wins.
+  const explicitBase = (config.public.baseUrl as string | undefined)?.replace(/\/$/, '')
   const host = getRequestHost(event)
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http'
-  const baseUrl = `${protocol}://${host}`
+  const baseUrl = explicitBase || `${protocol}://${host}`
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ['card'],

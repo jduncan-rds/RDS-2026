@@ -41,27 +41,55 @@ export interface ShippingInfo {
 const dollars = (cents: number) => (cents / 100).toFixed(2)
 
 /**
- * Notify Robert that an original sold (he ships these himself).
- * STUBBED: structured log for now. Wire Resend here when email is set up —
- * config.ordersNotifyEmail is the destination.
+ * Notify Robert that an original sold (he ships these himself). Sends an
+ * email via Resend if ORDERS_NOTIFY_EMAIL + Resend config are both present;
+ * otherwise logs the details so nothing is lost.
+ *
+ * Best-effort: an email-provider failure is swallowed (with a console error)
+ * so the webhook doesn't 500 and let Stripe retry on a successfully-flipped
+ * order. The Supabase order row is the durable record.
  */
-export function notifyOriginalPurchase(
+import { sendEmail } from './email'
+
+export async function notifyOriginalPurchase(
   orderId: string,
   item: OrderItemRow,
   shipping: ShippingInfo,
-): void {
+): Promise<void> {
   const config = useRuntimeConfig()
+  const notifyTo = config.ordersNotifyEmail as string | undefined
+
+  const lines = [
+    `Order: ${orderId}`,
+    `Painting: ${item.title_snapshot}`,
+    `Price: $${dollars(item.unit_price)}`,
+    '',
+    `Ship to: ${shipping.name ?? '(unknown)'}`,
+    shipping.address?.line1 ?? '',
+    shipping.address?.line2 ?? '',
+    [shipping.address?.city, shipping.address?.state, shipping.address?.postal_code]
+      .filter(Boolean)
+      .join(', '),
+    shipping.address?.country ?? '',
+    '',
+    `Buyer email: ${shipping.email ?? '(unknown)'}`,
+  ].filter((l) => l !== null).join('\n')
+
   console.log('[fulfillment:original] NEW ORIGINAL SALE — Robert to ship', {
     orderId,
-    notifyTo: config.ordersNotifyEmail || '(ORDERS_NOTIFY_EMAIL unset)',
+    notifyTo: notifyTo || '(ORDERS_NOTIFY_EMAIL unset)',
     title: item.title_snapshot,
-    price: `$${dollars(item.unit_price)}`,
-    buyer: shipping.email,
-    shipTo: shipping.name,
-    address: shipping.address,
   })
-  // TODO(email): when Resend is configured, send an email to
-  // config.ordersNotifyEmail with these details instead of just logging.
+
+  if (!notifyTo) return
+
+  await sendEmail({
+    to: notifyTo,
+    subject: `Original sold: ${item.title_snapshot}`,
+    text: lines,
+  }).catch((err) => {
+    console.error('[fulfillment:original] email send failed', { orderId, err })
+  })
 }
 
 /**

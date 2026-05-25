@@ -47,10 +47,14 @@ export default defineNuxtConfig({
     shipstationApiKey: process.env.SHIPSTATION_API_KEY,
     shipstationApiSecret: process.env.SHIPSTATION_API_SECRET,
     ordersNotifyEmail: process.env.ORDERS_NOTIFY_EMAIL,
+    contactEmail: process.env.CONTACT_EMAIL,
+    resendApiKey: process.env.RESEND_API_KEY,
+    resendFromEmail: process.env.RESEND_FROM_EMAIL,
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,
       stripePublishableKey: process.env.NUXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+      baseUrl: process.env.NUXT_PUBLIC_BASE_URL,
     },
   },
 })

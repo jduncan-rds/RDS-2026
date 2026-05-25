@@ -129,7 +129,7 @@ async function handleCheckoutCompleted(
   if (originals.length > 0) {
     const sanity = createSanityClient()
     for (const item of originals) {
-      notifyOriginalPurchase(orderId, item, shipping)
+      await notifyOriginalPurchase(orderId, item, shipping)
       try {
         const artworkId = await sanity.fetch<string | null>(
           `*[_id == $pid][0].artwork->_id`,
