@@ -1,5 +1,7 @@
 <script setup lang="ts">
-withDefaults(defineProps<{
+import { resolveComponent } from 'vue'
+
+const props = withDefaults(defineProps<{
   variant?: 'primary' | 'secondary' | 'ghost'
   size?: 'sm' | 'md' | 'lg'
   as?: string
@@ -9,11 +11,15 @@ withDefaults(defineProps<{
   size: 'md',
   as: 'button',
 })
+
+const tag = computed(() =>
+  props.as === 'NuxtLink' ? resolveComponent('NuxtLink') : props.as,
+)
 </script>
 
 <template>
   <component
-    :is="as"
+    :is="tag"
     :disabled="disabled"
     :class="[
       'inline-flex items-center justify-center font-ui tracking-widest uppercase transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rust focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none',

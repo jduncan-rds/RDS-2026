@@ -119,10 +119,11 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
       <!-- Available -->
       <section v-if="available.length">
         <h2 class="font-heading text-3xl text-brown mb-8">Available</h2>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div class="columns-2 md:columns-3 lg:columns-4 gap-6">
           <ArtworkCard
             v-for="artwork in available"
             :key="artwork.slug"
+            class="break-inside-avoid mb-6"
             :title="artwork.title"
             :image="artwork.image"
             :is-new="artwork.isNew"
@@ -136,10 +137,11 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
       <!-- Recently Sold -->
       <section v-if="recentlySold.length">
         <h2 class="font-heading text-3xl text-brown mb-8">Recently Sold</h2>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div class="columns-2 md:columns-3 lg:columns-4 gap-6">
           <ArtworkCard
             v-for="artwork in recentlySold"
             :key="artwork.slug"
+            class="break-inside-avoid mb-6"
             :title="artwork.title"
             :image="artwork.image"
             :artwork-id="artwork._id"
@@ -180,10 +182,11 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
             <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
         </button>
-        <div v-if="showArchived" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div v-if="showArchived" class="columns-2 md:columns-3 lg:columns-4 gap-6">
           <ArtworkCard
             v-for="artwork in archived"
             :key="artwork.slug"
+            class="break-inside-avoid mb-6"
             :title="artwork.title"
             :image="artwork.image"
             status="archived"

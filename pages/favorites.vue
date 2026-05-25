@@ -68,10 +68,11 @@ const { data: artworks } = await useAsyncData(
         </NuxtLink>
       </div>
 
-      <div v-else class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div v-else class="columns-2 md:columns-3 lg:columns-4 gap-6">
         <ArtworkCard
           v-for="artwork in artworks"
           :key="artwork._id"
+          class="break-inside-avoid mb-6"
           :title="artwork.title"
           :image="artwork.image"
           :is-new="artwork.isNew"

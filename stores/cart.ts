@@ -1,11 +1,20 @@
 import { defineStore } from 'pinia'
 
+export type CartItemKind =
+  | 'original'
+  | 'open_edition'
+  | 'pod_paper'
+  | 'pod_canvas'
+  | 'simple'
+
 export interface CartItem {
   productId: string
   artworkSlug: string
   title: string
   imageUrl: string
-  mediaType: 'original' | 'open_edition' | 'pod_paper' | 'pod_canvas'
+  // `mediaType` doubles as the discriminator across product kinds. 'simple'
+  // covers calendars / cards / gifts — fixed price, no size, no framing.
+  mediaType: CartItemKind
   size: string | null
   frameId: string | null
   frameName: string | null

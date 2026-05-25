@@ -3,7 +3,7 @@ import { createSanityClient } from '../../utils/sanity'
 import { createSupabaseAdmin } from '../../utils/supabase'
 import {
   notifyOriginalPurchase,
-  sendPrintOrderToShipStation,
+  sendFulfillableOrderToShipStation,
   type OrderItemRow,
   type ShippingInfo,
 } from '../../utils/fulfillment'
@@ -110,7 +110,7 @@ async function handleCheckoutCompleted(
 
   const { data: itemRows, error: itemsError } = await supabase
     .from('order_items')
-    .select('id, sanity_product_id, title_snapshot, media_type, size, frame_id, quantity, unit_price')
+    .select('id, sanity_product_id, title_snapshot, media_type, size, frame_id, quantity, unit_price, sku_snapshot')
     .eq('order_id', orderId)
 
   if (itemsError || !itemRows) {
@@ -120,7 +120,10 @@ async function handleCheckoutCompleted(
 
   const items = itemRows as OrderItemRow[]
   const originals = items.filter((i) => i.media_type === 'original')
-  const prints = items.filter((i) => i.media_type !== 'original')
+  // Prints + simple products (calendars/cards/gifts) both flow through
+  // ShipStation. They differ in how SKUs were computed; the fulfillment util
+  // picks the right one based on sku_snapshot.
+  const shipStationItems = items.filter((i) => i.media_type !== 'original')
 
   // Originals: notify Robert + mark the Sanity artwork recently_sold.
   if (originals.length > 0) {
@@ -144,10 +147,10 @@ async function handleCheckoutCompleted(
     }
   }
 
-  // Prints: route to Art City via ShipStation (stubbed if creds absent).
+  // Prints + simple products: route to ShipStation (stubbed if creds absent).
   try {
-    await sendPrintOrderToShipStation(orderId, prints, shipping)
+    await sendFulfillableOrderToShipStation(orderId, shipStationItems, shipping)
   } catch (err) {
-    console.error('[webhook] print fulfillment error (order still confirmed)', { orderId, err })
+    console.error('[webhook] shipstation fulfillment error (order still confirmed)', { orderId, err })
   }
 }

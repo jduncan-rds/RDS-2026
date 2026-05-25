@@ -20,9 +20,9 @@ const NuxtLink = resolveComponent('NuxtLink')
         v-if="image"
         :image="image"
         :alt="title"
-        aspect-ratio="4/5"
-        :width="600"
-        class="w-full transition-transform duration-500 group-hover:scale-[1.03]"
+        :width="800"
+        fit="max"
+        class="block w-full h-auto transition-transform duration-500 group-hover:scale-[1.03]"
       />
       <div v-else class="w-full aspect-[4/5] bg-brown/10" />
 

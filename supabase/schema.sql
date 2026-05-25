@@ -80,7 +80,7 @@ create policy "Users can view their own orders"
 -- ─────────────────────────────────────────
 -- order_items
 -- ─────────────────────────────────────────
-create type public.media_type as enum ('original', 'open_edition', 'pod_paper', 'pod_canvas');
+create type public.media_type as enum ('original', 'open_edition', 'pod_paper', 'pod_canvas', 'simple');
 
 create table if not exists public.order_items (
   id                  uuid primary key default gen_random_uuid(),

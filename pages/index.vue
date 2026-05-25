@@ -42,7 +42,7 @@ const { data: categories } = await useSanityQuery(groq`
         </p>
         <div class="flex gap-4 justify-center flex-wrap">
           <AppButton as="NuxtLink" to="/originals" variant="primary" size="lg">View Originals</AppButton>
-          <AppButton as="NuxtLink" to="/shop" variant="secondary" size="lg">Shop Prints</AppButton>
+          <AppButton as="NuxtLink" to="/shop/prints" variant="secondary" size="lg">Shop Prints</AppButton>
         </div>
       </div>
     </section>
@@ -53,7 +53,7 @@ const { data: categories } = await useSanityQuery(groq`
         <NuxtLink
           v-for="cat in categories"
           :key="cat.slug"
-          :to="`/shop?category=${cat.slug}`"
+          :to="`/shop/prints?category=${cat.slug}`"
           class="font-ui text-xs tracking-widest uppercase text-brown/60 hover:text-brown transition-colors pb-1 border-b border-transparent hover:border-brown"
         >
           {{ cat.name }}
@@ -69,10 +69,11 @@ const { data: categories } = await useSanityQuery(groq`
           View All
         </NuxtLink>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div class="columns-2 md:columns-3 lg:columns-4 gap-6">
         <ArtworkCard
           v-for="artwork in homepage.featuredArtwork"
           :key="artwork.slug"
+          class="break-inside-avoid mb-6"
           :title="artwork.title"
           :image="artwork.image"
           :is-new="artwork.isNew"
@@ -89,7 +90,7 @@ const { data: categories } = await useSanityQuery(groq`
         <p class="font-body text-cream/70 text-lg mb-10 max-w-md mx-auto">
           Museum-quality open edition and print-on-demand prints, available framed or unframed.
         </p>
-        <AppButton as="NuxtLink" to="/shop" variant="secondary" size="lg" class="border-cream text-cream hover:bg-cream hover:text-brown">
+        <AppButton as="NuxtLink" to="/shop/prints" variant="secondary" size="lg" class="border-cream text-cream hover:bg-cream hover:text-brown">
           Shop the Collection
         </AppButton>
       </div>

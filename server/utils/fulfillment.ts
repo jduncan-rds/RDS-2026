@@ -1,22 +1,28 @@
 /**
  * Phase 7 fulfillment routing.
  *
- * A paid order may mix prints (drop-shipped by Art City via ShipStation) and
- * originals (shipped by Robert himself). The webhook splits the order and
- * calls the right handler for each part. Both handlers are intentionally
- * best-effort + heavily logged: the durable record is the Supabase order row,
- * and fulfillment can be re-driven from there if a downstream call fails.
+ * A paid order may mix three kinds of items:
+ *  - originals (shipped by Robert himself)
+ *  - prints / canvas (drop-shipped by Art City via ShipStation)
+ *  - simple products (calendars / cards / gifts; also ShipStation, same flow,
+ *    using the product's own SKU from Sanity)
+ *
+ * The webhook splits the order: originals go to `notifyOriginalPurchase`,
+ * everything else goes to `sendFulfillableOrderToShipStation`. Both handlers
+ * are best-effort + heavily logged — the durable record is the Supabase
+ * order row, and fulfillment can be re-driven from there if a call fails.
  */
 
 export interface OrderItemRow {
   id: string
   sanity_product_id: string
   title_snapshot: string
-  media_type: 'original' | 'open_edition' | 'pod_paper' | 'pod_canvas'
+  media_type: 'original' | 'open_edition' | 'pod_paper' | 'pod_canvas' | 'simple'
   size: string | null
   frame_id: string | null
   quantity: number
   unit_price: number // cents
+  sku_snapshot: string | null
 }
 
 export interface ShippingInfo {
@@ -59,16 +65,18 @@ export function notifyOriginalPurchase(
 }
 
 /**
- * Route print items to Art City via ShipStation's createorder API.
- * If ShipStation credentials are absent, log the payload that *would* have
- * been sent so the order can be placed manually and nothing is lost.
+ * Route prints + simple products to ShipStation's createorder API. Prints use
+ * a composite SKU computed from product/media/size/frame; simple products use
+ * the SKU snapshotted from Sanity at checkout time. If ShipStation credentials
+ * are absent, log the payload that *would* have been sent so the order can be
+ * placed manually and nothing is lost.
  */
-export async function sendPrintOrderToShipStation(
+export async function sendFulfillableOrderToShipStation(
   orderId: string,
-  printItems: OrderItemRow[],
+  fulfillItems: OrderItemRow[],
   shipping: ShippingInfo,
 ): Promise<void> {
-  if (printItems.length === 0) return
+  if (fulfillItems.length === 0) return
 
   const config = useRuntimeConfig()
   const key = config.shipstationApiKey as string | undefined
@@ -88,8 +96,12 @@ export async function sendPrintOrderToShipStation(
       postalCode: shipping.address?.postal_code ?? null,
       country: shipping.address?.country ?? 'US',
     },
-    items: printItems.map((i) => ({
-      sku: [i.sanity_product_id, i.media_type, i.size, i.frame_id].filter(Boolean).join('|'),
+    items: fulfillItems.map((i) => ({
+      // Simple products (calendars/cards/gifts) ship under the SKU set in
+      // Sanity. Prints keep the historical composite SKU.
+      sku:
+        i.sku_snapshot ??
+        [i.sanity_product_id, i.media_type, i.size, i.frame_id].filter(Boolean).join('|'),
       name: [i.title_snapshot, i.size].filter(Boolean).join(' · '),
       quantity: i.quantity,
       unitPrice: Number(dollars(i.unit_price)),
@@ -98,7 +110,7 @@ export async function sendPrintOrderToShipStation(
 
   if (!key || !secret) {
     console.warn(
-      '[fulfillment:print] ShipStation not configured — print fulfillment PENDING manual handling',
+      '[fulfillment:shipstation] ShipStation not configured — fulfillment PENDING manual handling',
       { orderId, payload },
     )
     return
@@ -113,7 +125,7 @@ export async function sendPrintOrderToShipStation(
 
   if (!res.ok) {
     const text = await res.text().catch(() => '')
-    console.error('[fulfillment:print] ShipStation createorder failed', {
+    console.error('[fulfillment:shipstation] createorder failed', {
       orderId,
       status: res.status,
       body: text,
@@ -121,5 +133,5 @@ export async function sendPrintOrderToShipStation(
     throw new Error(`ShipStation createorder failed (${res.status})`)
   }
 
-  console.log('[fulfillment:print] ShipStation order created', { orderId })
+  console.log('[fulfillment:shipstation] order created', { orderId })
 }

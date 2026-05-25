@@ -5,12 +5,14 @@ import { createSupabaseAdmin } from '../utils/supabase'
 import { computeVariantPrice, computeFrameModifier } from '../../utils/pricing'
 import type { PricingRules, FramePricingData, PrintMediaType } from '../../utils/pricing'
 
+type CartItemKind = 'original' | PrintMediaType | 'simple'
+
 interface CartItemPayload {
   productId: string
   artworkSlug: string
   title: string
   imageUrl: string
-  mediaType: 'original' | PrintMediaType
+  mediaType: CartItemKind
   size: string | null
   frameId: string | null
   frameName: string | null
@@ -42,7 +44,16 @@ export default defineEventHandler(async (event) => {
 
   const [products, frames, rules] = await Promise.all([
     sanity.fetch<any[]>(
-      `*[_type == "product" && _id in $ids] { _id, originalPrice, "artworkStatus": artwork->status, variants[] { mediaType, size, price } }`,
+      `*[_type == "product" && _id in $ids] {
+        _id,
+        productType,
+        originalPrice,
+        simplePrice,
+        simpleSku,
+        simpleInStock,
+        "artworkStatus": artwork->status,
+        variants[] { mediaType, size, price }
+      }`,
       { ids: productIds },
     ),
     frameIds.length > 0
@@ -80,6 +91,7 @@ export default defineEventHandler(async (event) => {
     frame_id: string | null
     quantity: number
     unit_price: number
+    sku_snapshot: string | null
   }[] = []
 
   for (const item of items) {
@@ -89,6 +101,7 @@ export default defineEventHandler(async (event) => {
     }
 
     let unitAmountCents: number
+    let skuSnapshot: string | null = null
 
     if (item.mediaType === 'original') {
       if (!product.originalPrice) {
@@ -106,6 +119,29 @@ export default defineEventHandler(async (event) => {
         })
       }
       unitAmountCents = Math.round(product.originalPrice * 100)
+    } else if (item.mediaType === 'simple') {
+      // Calendars, cards, gifts. Fixed price + a real SKU stored on the
+      // product. No size or framing.
+      if (!product.simplePrice || product.simplePrice <= 0) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: `Price not set for: ${item.title}`,
+        })
+      }
+      if (!product.simpleSku) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: `SKU not set for: ${item.title}`,
+        })
+      }
+      if (product.simpleInStock === false) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: `Sorry, "${item.title}" is out of stock.`,
+        })
+      }
+      unitAmountCents = Math.round(product.simplePrice * 100)
+      skuSnapshot = product.simpleSku
     } else {
       if (!item.size) {
         throw createError({ statusCode: 400, statusMessage: `Size required for: ${item.title}` })
@@ -140,11 +176,14 @@ export default defineEventHandler(async (event) => {
       open_edition: 'Open Edition Print',
       pod_paper: 'Custom Print',
       pod_canvas: 'Custom Canvas',
+      simple: '',
     }
 
-    const descriptionParts: string[] = [mediaTypeLabel[item.mediaType] ?? item.mediaType]
+    const descriptionParts: string[] = []
+    const label = mediaTypeLabel[item.mediaType]
+    if (label) descriptionParts.push(label)
     if (item.size) descriptionParts.push(item.size)
-    if (item.mediaType !== 'original') {
+    if (item.mediaType !== 'original' && item.mediaType !== 'simple') {
       descriptionParts.push(`Frame: ${item.frameName ?? 'Unframed'}`)
     }
 
@@ -153,7 +192,7 @@ export default defineEventHandler(async (event) => {
         currency: 'usd',
         product_data: {
           name: item.title,
-          description: descriptionParts.join(' · '),
+          description: descriptionParts.length ? descriptionParts.join(' · ') : undefined,
           images: item.imageUrl ? [item.imageUrl] : [],
         },
         unit_amount: unitAmountCents,
@@ -170,6 +209,7 @@ export default defineEventHandler(async (event) => {
       frame_id: item.frameId,
       quantity: item.quantity,
       unit_price: unitAmountCents,
+      sku_snapshot: skuSnapshot,
     })
   }
 

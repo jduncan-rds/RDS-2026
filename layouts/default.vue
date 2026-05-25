@@ -1,7 +1,8 @@
 <script setup lang="ts">
 const navLinks = [
   { label: 'Originals', to: '/originals' },
-  { label: 'Shop', to: '/shop' },
+  { label: 'Prints', to: '/shop/prints' },
+  { label: 'Gifts', to: '/shop/gifts' },
   { label: 'About Robert', to: '/about' },
   { label: 'Contact', to: '/contact' },
 ]

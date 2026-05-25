@@ -11,6 +11,11 @@ const { data: product } = await useSanityQuery(groq`
     _id,
     productType,
     originalPrice,
+    simplePrice,
+    simpleSku,
+    simpleInStock,
+    simpleDescription,
+    productImages,
     variants,
     artwork->{
       title,
@@ -42,10 +47,27 @@ if (!product.value) {
 
 const artwork = computed(() => product.value?.artwork)
 const isOriginal = computed(() => product.value?.productType === 'original')
+const isSimple = computed(() =>
+  ['calendar', 'card', 'gift'].includes(product.value?.productType ?? ''),
+)
+const simpleTypeLabel = computed(() => {
+  const map: Record<string, string> = {
+    calendar: 'Calendar',
+    card: 'Greeting Card',
+    gift: 'Gift',
+  }
+  return map[product.value?.productType ?? ''] ?? ''
+})
 
-// Image gallery
+// Image gallery — show artwork images first, then any extra product photos
+// (calendar shots, lifestyle mockups, packaging, etc.) added at the product
+// level. All clickable as thumbnails under the main image.
+const displayImages = computed(() => [
+  ...(artwork.value?.images ?? []),
+  ...(product.value?.productImages ?? []),
+])
 const activeImageIndex = ref(0)
-const activeImage = computed(() => artwork.value?.images?.[activeImageIndex.value] ?? null)
+const activeImage = computed(() => displayImages.value[activeImageIndex.value] ?? null)
 
 // Product options
 const mediaTypes = [
@@ -86,6 +108,7 @@ const selectedFrame = computed(() =>
 
 const displayPrice = computed(() => {
   if (isOriginal.value) return product.value?.originalPrice ?? null
+  if (isSimple.value) return product.value?.simplePrice ?? null
   if (!selectedVariant.value || !pricingRules.value) return null
   const base = computeVariantPrice(
     selectedMediaType.value as any,
@@ -103,21 +126,26 @@ const addedToCart = ref(false)
 
 function addToCart() {
   if (!product.value || !artwork.value) return
-  if (!isOriginal.value && !selectedVariant.value) return
+  if (!isOriginal.value && !isSimple.value && !selectedVariant.value) return
 
   const imageUrl = artwork.value.images?.[0]
     ? useSanityImageUrl(artwork.value.images[0]).width(400).auto('format').url()
     : ''
+
+  let kind: 'original' | 'simple' | 'open_edition' | 'pod_paper' | 'pod_canvas'
+  if (isOriginal.value) kind = 'original'
+  else if (isSimple.value) kind = 'simple'
+  else kind = selectedMediaType.value as any
 
   cart.add({
     productId: product.value._id,
     artworkSlug: artwork.value.slug,
     title: artwork.value.title,
     imageUrl,
-    mediaType: isOriginal.value ? 'original' : selectedMediaType.value as any,
-    size: isOriginal.value ? null : selectedSize.value,
-    frameId: selectedFrameId.value,
-    frameName: selectedFrame.value?.name ?? null,
+    mediaType: kind,
+    size: isOriginal.value || isSimple.value ? null : selectedSize.value,
+    frameId: isSimple.value ? null : selectedFrameId.value,
+    frameName: isSimple.value ? null : (selectedFrame.value?.name ?? null),
     quantity: quantity.value,
     unitPrice: displayPrice.value ?? 0,
   })
@@ -143,18 +171,17 @@ useSeoMeta({
             v-if="activeImage"
             :image="activeImage"
             :alt="artwork?.title ?? ''"
-            :width="900"
-            fit="crop"
-            aspect-ratio="4/5"
-            class="w-full"
+            :width="1200"
+            fit="max"
+            class="block w-full h-auto"
           />
           <div v-else class="w-full aspect-[4/5] bg-brown/10" />
         </ArtworkFrame>
 
         <!-- Thumbnails -->
-        <div v-if="(artwork?.images?.length ?? 0) > 1" class="flex gap-2 mt-4">
+        <div v-if="displayImages.length > 1" class="flex gap-2 mt-4 flex-wrap">
           <button
-            v-for="(img, i) in artwork.images"
+            v-for="(img, i) in displayImages"
             :key="i"
             type="button"
             :class="[
@@ -174,6 +201,13 @@ useSeoMeta({
         <nav class="mb-6">
           <NuxtLink to="/shop" class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors">
             Shop
+          </NuxtLink>
+          <span class="font-ui text-xs text-brown/20 mx-2">/</span>
+          <NuxtLink
+            :to="isSimple ? '/shop/gifts' : '/shop/prints'"
+            class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors"
+          >
+            {{ isSimple ? 'Calendars & Gifts' : 'Prints &amp; Canvas' }}
           </NuxtLink>
           <span class="font-ui text-xs text-brown/20 mx-2">/</span>
           <span class="font-ui text-xs tracking-widest uppercase text-brown/60">{{ artwork?.title }}</span>
@@ -196,6 +230,66 @@ useSeoMeta({
             </AppButton>
           </div>
           <p v-else class="font-ui text-xs tracking-widest uppercase text-brown/40">This piece has been sold.</p>
+        </template>
+
+        <!-- Simple (calendar / card / gift): fixed price, no framing, no size -->
+        <template v-else-if="isSimple">
+          <p v-if="simpleTypeLabel" class="font-ui text-xs tracking-widest uppercase text-brown/50 mb-3">
+            {{ simpleTypeLabel }}
+          </p>
+          <p class="font-heading text-3xl text-brown mb-6">
+            ${{ product?.simplePrice?.toLocaleString() }}
+          </p>
+
+          <p v-if="product?.simpleDescription" class="font-body text-brown/70 leading-relaxed mb-8">
+            {{ product.simpleDescription }}
+          </p>
+
+          <!-- Quantity -->
+          <div v-if="product?.simpleInStock !== false" class="mb-8">
+            <p class="font-ui text-xs tracking-widest uppercase text-brown/60 mb-3">Quantity</p>
+            <div class="flex items-center gap-4">
+              <button
+                type="button"
+                class="w-8 h-8 border border-brown/30 hover:border-brown transition-colors flex items-center justify-center font-ui text-brown disabled:opacity-30"
+                :disabled="quantity <= 1"
+                @click="quantity = Math.max(1, quantity - 1)"
+              >
+                −
+              </button>
+              <span class="font-ui text-sm w-6 text-center">{{ quantity }}</span>
+              <button
+                type="button"
+                class="w-8 h-8 border border-brown/30 hover:border-brown transition-colors flex items-center justify-center font-ui text-brown"
+                @click="quantity++"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div class="border-t border-brown/10 pt-8">
+            <div v-if="product?.simpleInStock !== false">
+              <div class="flex items-baseline justify-between mb-6">
+                <p class="font-ui text-xs tracking-widest uppercase text-brown/50">Total</p>
+                <p class="font-heading text-3xl text-brown">
+                  ${{ ((product?.simplePrice ?? 0) * quantity).toLocaleString() }}
+                </p>
+              </div>
+              <AppButton
+                variant="primary"
+                size="lg"
+                class="w-full"
+                :disabled="!displayPrice"
+                @click="addToCart"
+              >
+                {{ addedToCart ? 'Added to Cart ✓' : 'Add to Cart' }}
+              </AppButton>
+            </div>
+            <p v-else class="font-ui text-xs tracking-widest uppercase text-brown/40">
+              Out of stock.
+            </p>
+          </div>
         </template>
 
         <!-- Print: full selector UI -->

@@ -13,16 +13,20 @@ const props = withDefaults(defineProps<{
   fit: 'crop',
 })
 
-const builder = useSanityImageUrl(props.image)
+// Build the image URL reactively. The previous `const builder = useSanityImageUrl(props.image)`
+// captured the source once at setup; when `props.image` later changed (e.g. user
+// clicks a thumbnail and the parent swaps which image to show), `src`/`srcset`
+// kept resolving the original image.
+const builder = computed(() => useSanityImageUrl(props.image))
 
 const src = computed(() =>
-  builder.width(props.width ?? 800).fit(props.fit).auto('format').url()
+  builder.value.width(props.width ?? 800).fit(props.fit).auto('format').url()
 )
 
 const srcset = computed(() => {
   const widths = [400, 800, 1200, 1600]
   return widths
-    .map((w) => `${builder.width(w).fit(props.fit).auto('format').url()} ${w}w`)
+    .map((w) => `${builder.value.width(w).fit(props.fit).auto('format').url()} ${w}w`)
     .join(', ')
 })
 </script>
