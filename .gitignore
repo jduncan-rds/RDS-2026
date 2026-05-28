@@ -25,3 +25,7 @@ logs
 
 # Sanity CLI runtime cache
 .sanity/
+
+# Import script outputs (generated)
+import-report.txt
+products_export.csv

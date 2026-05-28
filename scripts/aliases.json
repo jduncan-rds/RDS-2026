@@ -1,0 +1,12 @@
+{
+  "_comment": "Maps CSV painting slug (handle minus -open-edition-print) to image filename stem (no extension). Use only when token matching fails — typically for spelling differences or naming changes. The script checks this file BEFORE token matching.",
+  "the-traveller": "0220-the-traveler",
+  "nothing-like-jonathons": "0039-nothing-like-johnathons",
+  "fishin-at-the-bridge": "0173-fishingatthebridge",
+  "winters-blanket": "0033-winter-blanket",
+  "the-river-lessons": "0116-the-rivers-lessons",
+  "snow-troopers": "0049-snowtroopers",
+  "sarahs-garden": "0073-sarah's-garden",
+  "emmas-sleigh-ride": "0112-emma's-sleighride",
+  "catching-snowflakes": "0122-catching-snow-flakes"
+}

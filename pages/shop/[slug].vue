@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import groq from 'groq'
-import { computeVariantPrice, computeFrameModifier } from '~/utils/pricing'
+import { computeVariantPrice, computeFrameModifier, sqIn } from '~/utils/pricing'
 import type { PricingRules } from '~/utils/pricing'
 
 const route = useRoute()
@@ -87,11 +87,16 @@ const selectedSize = ref<string | null>(null)
 const selectedFrameId = ref<string | null>(null)
 const quantity = ref(1)
 
-const availableSizes = computed(() =>
-  (product.value?.variants ?? []).filter(
+const availableSizes = computed(() => {
+  const filtered = (product.value?.variants ?? []).filter(
     (v: any) => v.mediaType === selectedMediaType.value && v.inStock !== false,
-  ),
-)
+  )
+  return [...filtered].sort((a: any, b: any) => {
+    const aArea = sqIn(a.size) ?? Number.MAX_SAFE_INTEGER
+    const bArea = sqIn(b.size) ?? Number.MAX_SAFE_INTEGER
+    return aArea - bArea
+  })
+})
 
 watch(selectedMediaType, () => { selectedSize.value = null })
 watch(availableSizes, (sizes) => {

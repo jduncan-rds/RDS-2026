@@ -12,7 +12,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "seed": "npx tsx sanity/seed.ts"
+    "seed": "npx tsx sanity/seed.ts",
+    "import:products": "npx tsx scripts/import-products.ts"
   },
   "dependencies": {
     "@nuxtjs/sanity": "^2.3.0",

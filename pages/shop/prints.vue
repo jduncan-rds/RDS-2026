@@ -40,6 +40,7 @@ const banner = computed(() => data.value?.banner)
 const pricingRules = computed(() => data.value?.pricingRules ?? null)
 
 const route = useRoute()
+const router = useRouter()
 const activeCategories = ref<string[]>(
   route.query.category ? [String(route.query.category)] : [],
 )
@@ -50,7 +51,36 @@ watch(
   },
 )
 const showNewOnly = ref(false)
-const hasActiveFilters = computed(() => activeCategories.value.length > 0 || showNewOnly.value)
+
+// Search — initialized from ?q= and kept in sync (replaceState so we don't pollute history)
+const searchQuery = ref<string>(route.query.q ? String(route.query.q) : '')
+let urlSyncTimer: ReturnType<typeof setTimeout> | null = null
+watch(searchQuery, (q) => {
+  if (urlSyncTimer) clearTimeout(urlSyncTimer)
+  urlSyncTimer = setTimeout(() => {
+    const next = { ...route.query }
+    if (q) next.q = q
+    else delete next.q
+    router.replace({ query: next })
+  }, 250)
+})
+watch(
+  () => route.query.q,
+  (q) => {
+    const v = q ? String(q) : ''
+    if (v !== searchQuery.value) searchQuery.value = v
+  },
+)
+
+const hasActiveFilters = computed(
+  () => activeCategories.value.length > 0 || showNewOnly.value || searchQuery.value.trim().length > 0,
+)
+
+function clearAllFilters() {
+  activeCategories.value = []
+  showNewOnly.value = false
+  searchQuery.value = ''
+}
 
 function toggleCategory(slug: string) {
   const i = activeCategories.value.indexOf(slug)
@@ -67,6 +97,12 @@ const filtered = computed(() => {
   }
   if (showNewOnly.value) {
     result = result.filter((p: any) => p.artwork?.isNew)
+  }
+  const q = searchQuery.value.trim().toLowerCase()
+  if (q) {
+    result = result.filter((p: any) =>
+      (p.artwork?.title ?? '').toLowerCase().includes(q),
+    )
   }
   return result
 })
@@ -100,34 +136,72 @@ function startingPrice(product: any): number | null {
 
     <!-- Sticky filter bar -->
     <div class="sticky top-16 lg:top-20 z-40 bg-cream border-y border-brown/10">
-      <div class="max-w-7xl mx-auto px-6 lg:px-10 py-4 flex flex-wrap items-center gap-3">
-        <FilterPill
-          v-for="cat in categories"
-          :key="cat.slug"
-          :label="cat.name"
-          :active="activeCategories.includes(cat.slug)"
-          @click="toggleCategory(cat.slug)"
-        />
-        <div class="w-px h-5 bg-brown/20 mx-1 hidden sm:block" />
-        <button
-          type="button"
-          :class="[
-            'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200 flex items-center gap-2',
-            showNewOnly ? 'bg-rust text-cream border-rust' : 'bg-transparent text-brown border-brown/40 hover:border-brown',
-          ]"
-          @click="showNewOnly = !showNewOnly"
-        >
-          <span class="w-1.5 h-1.5 rounded-full bg-current" />
-          New Work
-        </button>
-        <button
-          v-if="hasActiveFilters"
-          type="button"
-          class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors ml-auto"
-          @click="activeCategories = []; showNewOnly = false"
-        >
-          Clear
-        </button>
+      <div class="max-w-7xl mx-auto px-6 lg:px-10 py-4 space-y-3">
+        <!-- Row 1: Search + Clear -->
+        <div class="flex items-center gap-3">
+          <div class="relative w-full sm:max-w-md">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brown/40 pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+              />
+            </svg>
+            <input
+              v-model="searchQuery"
+              type="search"
+              placeholder="Search by title…"
+              class="w-full font-ui text-sm pl-9 pr-8 py-2 bg-transparent border border-brown/40 text-brown placeholder:text-brown/40 focus:outline-none focus:border-brown"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-brown/40 hover:text-brown w-5 h-5 flex items-center justify-center"
+              aria-label="Clear search"
+              @click="searchQuery = ''"
+            >
+              ✕
+            </button>
+          </div>
+          <button
+            v-if="hasActiveFilters"
+            type="button"
+            class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors ml-auto whitespace-nowrap"
+            @click="clearAllFilters"
+          >
+            Clear all
+          </button>
+        </div>
+
+        <!-- Row 2: Category pills + New Work -->
+        <div class="flex flex-wrap items-center gap-3">
+          <FilterPill
+            v-for="cat in categories"
+            :key="cat.slug"
+            :label="cat.name"
+            :active="activeCategories.includes(cat.slug)"
+            @click="toggleCategory(cat.slug)"
+          />
+          <div class="w-px h-5 bg-brown/20 mx-1 hidden sm:block" />
+          <button
+            type="button"
+            :class="[
+              'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200 flex items-center gap-2',
+              showNewOnly ? 'bg-rust text-cream border-rust' : 'bg-transparent text-brown border-brown/40 hover:border-brown',
+            ]"
+            @click="showNewOnly = !showNewOnly"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-current" />
+            New Work
+          </button>
+        </div>
       </div>
     </div>
 
@@ -168,11 +242,14 @@ function startingPrice(product: any): number | null {
       </div>
 
       <div v-else class="py-24 text-center">
-        <p class="font-body text-brown/40 text-lg italic">No prints found.</p>
+        <p class="font-body text-brown/40 text-lg italic">
+          <template v-if="searchQuery">No prints match &ldquo;{{ searchQuery }}&rdquo;.</template>
+          <template v-else>No prints found.</template>
+        </p>
         <button
           v-if="hasActiveFilters"
           class="mt-4 font-ui text-xs tracking-widest uppercase text-brown/50 hover:text-brown transition-colors underline underline-offset-4"
-          @click="activeCategories = []; showNewOnly = false"
+          @click="clearAllFilters"
         >
           Clear filters
         </button>
