@@ -27,6 +27,15 @@ export const frame = defineType({
       validation: (r) => r.required(),
     }),
     defineField({
+      name: 'mouldingInches',
+      title: 'Moulding Width (inches)',
+      type: 'number',
+      description:
+        'Real width of the frame moulding. Controls how thick this frame looks in the preview relative to other frames (e.g. a 3" frame renders thicker than a 2"). Defaults to 2.5.',
+      initialValue: 2.5,
+      validation: (r) => r.min(0.25).max(12),
+    }),
+    defineField({
       name: 'frameRateType',
       title: 'Frame Pricing Method',
       type: 'string',

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import groq from 'groq'
-import { computeVariantPrice, computeFrameModifier, sqIn } from '~/utils/pricing'
+import { computeVariantPrice, computeFrameModifier, sqIn, parseSize } from '~/utils/pricing'
 import type { PricingRules } from '~/utils/pricing'
 
 const route = useRoute()
@@ -33,7 +33,7 @@ const { data: product } = await useSanityQuery(groq`
 
 const { data: frames } = await useSanityQuery(groq`
   *[_type == "frame"] | order(displayOrder asc) {
-    _id, name, barImage, thumbnail, priceModifier, frameRateType, ratePerSqIn
+    _id, name, barImage, thumbnail, priceModifier, frameRateType, ratePerSqIn, mouldingInches
   }
 `)
 
@@ -111,6 +111,24 @@ const selectedFrame = computed(() =>
   frames.value?.find((f: any) => f._id === selectedFrameId.value) ?? null,
 )
 
+// Frame thickness, in px, scaled by two things:
+//  1. The artwork's real size — a fixed-width moulding reads as a thicker frame
+//     on a small print and a thinner one on a large print, so we scale inversely
+//     to the artwork's characteristic size (geometric mean of its dimensions).
+//  2. The selected frame's real moulding width — a 3" frame should look thicker
+//     than a 2" one on the same print, relative to a 2.5" baseline.
+// Clamped so tiny prints don't get a giant frame nor huge ones a hairline.
+// Approximate by design — it just needs to read as proportional.
+const frameWidth = computed(() => {
+  const mouldFactor = (selectedFrame.value?.mouldingInches ?? 2.5) / 2.5
+  const sizeStr = selectedVariant.value?.size ?? artwork.value?.dimensions
+  const dims = sizeStr ? parseSize(sizeStr) : null
+  // base 810/characteristic gives ~45px at an 18" characteristic; 41 is the
+  // fallback when size is unknown/unparseable (e.g. originals).
+  const base = dims ? 810 / Math.sqrt(dims.w * dims.h) : 41
+  return Math.round(Math.min(68, Math.max(20, base * mouldFactor)))
+})
+
 const displayPrice = computed(() => {
   if (isOriginal.value) return product.value?.originalPrice ?? null
   if (isSimple.value) return product.value?.simplePrice ?? null
@@ -171,7 +189,7 @@ useSeoMeta({
 
       <!-- Image gallery -->
       <div class="lg:sticky lg:top-28">
-        <ArtworkFrame :frame="selectedFrame" :frame-width="30">
+        <ArtworkFrame :frame="selectedFrame" :frame-width="frameWidth">
           <SanityImage
             v-if="activeImage"
             :image="activeImage"

@@ -2,9 +2,12 @@
 const props = defineProps<{
   frame: { _id: string; barImage: any; priceModifier: number } | null
   frameWidth?: number
+  /** Softens the repeating bar texture so the tiling seams are less noticeable */
+  blur?: number
 }>()
 
 const fw = computed(() => props.frameWidth ?? 28)
+const barFilter = computed(() => `blur(${props.blur ?? .75}px)`)
 
 const barUrl = computed(() => {
   if (!props.frame?.barImage) return null
@@ -24,6 +27,7 @@ const barUrl = computed(() => {
           backgroundImage: `url(${barUrl})`,
           backgroundSize: 'auto 100%',
           backgroundRepeat: 'repeat-x',
+          filter: barFilter,
           clipPath: `polygon(${fw}px 100%, 0 0, 100% 0, calc(100% - ${fw}px) 100%)`,
         }"
       />
@@ -41,6 +45,7 @@ const barUrl = computed(() => {
           backgroundImage: `url(${barUrl})`,
           backgroundSize: 'auto 100%',
           backgroundRepeat: 'repeat-x',
+          filter: barFilter,
           transform: 'rotate(180deg)',
           transformOrigin: 'center',
         }" />
@@ -60,6 +65,7 @@ const barUrl = computed(() => {
           backgroundImage: `url(${barUrl})`,
           backgroundSize: 'auto 100%',
           backgroundRepeat: 'repeat-x',
+          filter: barFilter,
           transform: 'translate(-50%, -50%) rotate(270deg)',
         }" />
       </div>
@@ -78,6 +84,7 @@ const barUrl = computed(() => {
           backgroundImage: `url(${barUrl})`,
           backgroundSize: 'auto 100%',
           backgroundRepeat: 'repeat-x',
+          filter: barFilter,
           transform: 'translate(-50%, -50%) rotate(90deg)',
         }" />
       </div>
