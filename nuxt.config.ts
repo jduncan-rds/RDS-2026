@@ -50,6 +50,7 @@ export default defineNuxtConfig({
     contactEmail: process.env.CONTACT_EMAIL,
     resendApiKey: process.env.RESEND_API_KEY,
     resendFromEmail: process.env.RESEND_FROM_EMAIL,
+    resendFromEmailOrders: process.env.RESEND_FROM_EMAIL_ORDERS,
     public: {
       supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
       supabaseAnonKey: process.env.NUXT_PUBLIC_SUPABASE_ANON_KEY,

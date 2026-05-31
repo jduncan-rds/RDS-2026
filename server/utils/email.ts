@@ -15,12 +15,14 @@ export interface EmailMessage {
   text: string
   /** Optional reply-to (e.g., the contact form submitter). */
   replyTo?: string
+  /** Override the default from-address (RESEND_FROM_EMAIL), e.g. order alerts. */
+  from?: string
 }
 
 export async function sendEmail(message: EmailMessage): Promise<void> {
   const config = useRuntimeConfig()
   const apiKey = config.resendApiKey as string | undefined
-  const from = config.resendFromEmail as string | undefined
+  const from = message.from || (config.resendFromEmail as string | undefined)
 
   if (!apiKey || !from) {
     console.warn('[email] Resend not configured — message NOT sent', {

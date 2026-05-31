@@ -87,6 +87,7 @@ export async function notifyOriginalPurchase(
     to: notifyTo,
     subject: `Original sold: ${item.title_snapshot}`,
     text: lines,
+    from: config.resendFromEmailOrders as string | undefined,
   }).catch((err) => {
     console.error('[fulfillment:original] email send failed', { orderId, err })
   })
