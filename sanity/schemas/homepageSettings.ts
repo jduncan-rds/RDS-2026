@@ -20,11 +20,12 @@ export const homepageSettings = defineType({
       description: 'Optional text overlay on the hero image',
     }),
     defineField({
-      name: 'featuredArtwork',
-      title: 'Featured Artwork',
+      name: 'featuredProducts',
+      title: 'Featured Work',
       type: 'array',
-      of: [{ type: 'reference', to: [{ type: 'artwork' }] }],
-      description: 'Spotlight pieces shown in the homepage grid',
+      of: [{ type: 'reference', to: [{ type: 'product' }] }],
+      description:
+        'Spotlight pieces shown in the homepage grid. Any product type — originals, prints, calendars, gifts. Drag to reorder.',
       validation: (r) => r.max(12),
     }),
   ],

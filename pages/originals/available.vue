@@ -2,15 +2,15 @@
 import groq from 'groq'
 
 useSeoMeta({
-  title: 'Original Artwork — Robert Duncan Fine Art',
-  description: 'Browse original oil paintings by Robert Duncan. Available works, recently sold, and archived pieces.',
+  title: 'Available Originals — Robert Duncan Fine Art',
+  description: 'Original oil paintings by Robert Duncan currently available, plus recently sold pieces.',
 })
 
 const { data } = await useSanityQuery<{
   artworks: any[]
   categories: any[]
 }>(groq`{
-  "artworks": *[_type == "artwork" && defined(status)] | order(_createdAt desc) {
+  "artworks": *[_type == "artwork" && status in ["available", "recently_sold"]] | order(_createdAt desc) {
     _id,
     title,
     "slug": slug.current,
@@ -57,9 +57,7 @@ const filtered = computed(() => {
 
 const available = computed(() => filtered.value.filter((a: any) => a.status === 'available'))
 const recentlySold = computed(() => filtered.value.filter((a: any) => a.status === 'recently_sold'))
-const archived = computed(() => filtered.value.filter((a: any) => a.status === 'archived'))
 
-const showArchived = ref(false)
 const hasActiveFilters = computed(() => activeCategories.value.length > 0 || showNewOnly.value)
 </script>
 
@@ -67,8 +65,14 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
   <div>
     <!-- Page header -->
     <div class="max-w-7xl mx-auto px-6 lg:px-10 pt-16">
-      <p class="font-ui text-xs tracking-widest uppercase text-brown/50 mb-3">The Collection</p>
-      <h1 class="font-heading text-5xl md:text-6xl text-brown">Original Artwork</h1>
+      <nav class="mb-3">
+        <NuxtLink to="/originals" class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors">
+          Originals
+        </NuxtLink>
+        <span class="font-ui text-xs text-brown/20 mx-2">/</span>
+        <span class="font-ui text-xs tracking-widest uppercase text-brown/60">Available</span>
+      </nav>
+      <h1 class="font-heading text-5xl md:text-6xl text-brown">Available Originals</h1>
     </div>
 
     <!-- Spacer -->
@@ -152,7 +156,7 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
 
       <!-- Empty state -->
       <div
-        v-if="!available.length && !recentlySold.length && !archived.length"
+        v-if="!available.length && !recentlySold.length"
         class="py-20 text-center"
       >
         <p class="font-body text-brown/40 text-lg italic">No artwork found.</p>
@@ -164,35 +168,6 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
           Clear filters
         </button>
       </div>
-
-      <!-- Archived (collapsible) -->
-      <section v-if="archived.length">
-        <button
-          type="button"
-          class="flex items-center gap-3 group mb-8"
-          @click="showArchived = !showArchived"
-        >
-          <h2 class="font-heading text-3xl text-brown/50 group-hover:text-brown transition-colors">Archived</h2>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="w-4 h-4 text-brown/40 transition-transform duration-300"
-            :class="showArchived ? 'rotate-180' : ''"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-        <div v-if="showArchived" class="columns-2 md:columns-3 lg:columns-4 gap-6">
-          <ArtworkCard
-            v-for="artwork in archived"
-            :key="artwork.slug"
-            class="break-inside-avoid mb-6"
-            :title="artwork.title"
-            :image="artwork.image"
-            status="archived"
-          />
-        </div>
-      </section>
 
     </div>
   </div>

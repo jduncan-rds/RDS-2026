@@ -49,9 +49,10 @@ async function seed() {
     console.log(`  Created "${name}"`)
   }
 
-  // Singleton documents (Homepage Settings, Store Banner, Site Settings, Pricing Rules)
+  // Singleton documents (Homepage Settings, Announcement Banner, Store Banner, Site Settings, Pricing Rules)
   const singletons = [
     { _id: 'homepageSettings', _type: 'homepageSettings' },
+    { _id: 'announcementBanner', _type: 'announcementBanner', enabled: false, tone: 'dark' },
     { _id: 'storeBanner', _type: 'storeBanner', displayStyle: 'single', bannerItems: [] },
     { _id: 'siteSettings', _type: 'siteSettings' },
     {

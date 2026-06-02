@@ -10,19 +10,25 @@ const { data: homepage } = await useSanityQuery(groq`
   *[_type == "homepageSettings"][0]{
     heroImages,
     heroHeadline,
-    featuredArtwork[]->{
-      title,
-      "slug": slug.current,
-      "image": images[0],
-      isNew,
-      status
+    featuredProducts[]->{
+      _id,
+      productType,
+      "title": artwork->title,
+      "slug": artwork->slug.current,
+      "image": artwork->images[0],
+      "isNew": artwork->isNew,
+      "status": artwork->status
     }
   }
 `)
 
-const { data: categories } = await useSanityQuery(groq`
-  *[_type == "category"] | order(name asc){ name, "slug": slug.current }
-`)
+const productTypeLabels: Record<string, string> = {
+  original: 'Original',
+  print: 'Print',
+  calendar: 'Calendar',
+  card: 'Greeting Card',
+  gift: 'Gift',
+}
 </script>
 
 <template>
@@ -47,52 +53,21 @@ const { data: categories } = await useSanityQuery(groq`
       </div>
     </section>
 
-    <!-- Category navigation -->
-    <section v-if="categories?.length" class="border-b border-brown/10">
-      <div class="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex gap-3 flex-wrap">
-        <NuxtLink
-          v-for="cat in categories"
-          :key="cat.slug"
-          :to="`/shop/prints?category=${cat.slug}`"
-          class="font-ui text-xs tracking-widest uppercase text-brown/60 hover:text-brown transition-colors pb-1 border-b border-transparent hover:border-brown"
-        >
-          {{ cat.name }}
-        </NuxtLink>
-      </div>
-    </section>
-
-    <!-- Featured artwork -->
-    <section v-if="homepage?.featuredArtwork?.length" class="max-w-7xl mx-auto px-6 lg:px-10 py-20">
-      <div class="flex items-baseline justify-between mb-10">
-        <h2 class="font-heading text-3xl md:text-4xl text-brown">Featured Work</h2>
-        <NuxtLink to="/originals" class="font-ui text-xs tracking-widest uppercase text-brown/50 hover:text-brown transition-colors">
-          View All
-        </NuxtLink>
-      </div>
+    <!-- Featured work -->
+    <section v-if="homepage?.featuredProducts?.length" class="max-w-7xl mx-auto px-6 lg:px-10 py-20">
+      <h2 class="font-heading text-3xl md:text-4xl text-brown mb-10">Featured Work</h2>
       <div class="columns-2 md:columns-3 lg:columns-4 gap-6">
         <ArtworkCard
-          v-for="artwork in homepage.featuredArtwork"
-          :key="artwork.slug"
+          v-for="item in homepage.featuredProducts"
+          :key="item._id"
           class="break-inside-avoid mb-6"
-          :title="artwork.title"
-          :image="artwork.image"
-          :is-new="artwork.isNew"
-          :status="artwork.status"
-          :to="artwork.status === 'available' ? `/shop/${artwork.slug}` : undefined"
+          :title="item.title"
+          :image="item.image"
+          :is-new="item.isNew"
+          :status="item.productType === 'original' ? item.status : undefined"
+          :eyebrow="productTypeLabels[item.productType]"
+          :to="`/shop/${item.slug}`"
         />
-      </div>
-    </section>
-
-    <!-- CTA strip -->
-    <section class="bg-brown text-cream py-20">
-      <div class="max-w-7xl mx-auto px-6 lg:px-10 text-center">
-        <h2 class="font-heading text-3xl md:text-5xl mb-6">Fine Art Prints</h2>
-        <p class="font-body text-cream/70 text-lg mb-10 max-w-md mx-auto">
-          Museum-quality open edition and print-on-demand prints, available framed or unframed.
-        </p>
-        <AppButton as="NuxtLink" to="/shop/prints" variant="secondary" size="lg" class="border-cream text-cream hover:bg-cream hover:text-brown">
-          Shop the Collection
-        </AppButton>
       </div>
     </section>
   </div>

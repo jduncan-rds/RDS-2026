@@ -8,6 +8,7 @@ defineProps<{
   status?: 'available' | 'recently_sold' | 'archived'
   to?: string
   artworkId?: string
+  eyebrow?: string
 }>()
 
 const NuxtLink = resolveComponent('NuxtLink')
@@ -37,6 +38,9 @@ const NuxtLink = resolveComponent('NuxtLink')
     </div>
 
     <div class="pt-3 pb-1">
+      <p v-if="eyebrow" class="font-ui text-[10px] tracking-widest uppercase text-brown/40 mb-1">
+        {{ eyebrow }}
+      </p>
       <p class="font-body text-brown text-base leading-snug">{{ title }}</p>
     </div>
   </component>

@@ -3,7 +3,13 @@ import { structureTool } from 'sanity/structure'
 import { visionTool } from '@sanity/vision'
 import { schemaTypes } from './sanity/schemas'
 
-const singletons = ['homepageSettings', 'storeBanner', 'siteSettings', 'pricingRules']
+const singletons = [
+  'homepageSettings',
+  'announcementBanner',
+  'storeBanner',
+  'siteSettings',
+  'pricingRules',
+]
 
 export default defineConfig({
   name: 'robert-duncan-fine-art',
@@ -42,6 +48,14 @@ export default defineConfig({
                 S.document()
                   .schemaType('homepageSettings')
                   .documentId('homepageSettings'),
+              ),
+            S.listItem()
+              .title('Announcement Banner')
+              .id('announcementBanner')
+              .child(
+                S.document()
+                  .schemaType('announcementBanner')
+                  .documentId('announcementBanner'),
               ),
             S.listItem()
               .title('Store Banner')

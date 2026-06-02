@@ -1,3 +1,4 @@
+import { announcementBanner } from './announcementBanner'
 import { artwork } from './artwork'
 import { category } from './category'
 import { frame } from './frame'
@@ -13,6 +14,7 @@ export const schemaTypes = [
   frame,
   category,
   homepageSettings,
+  announcementBanner,
   storeBanner,
   siteSettings,
   pricingRules,

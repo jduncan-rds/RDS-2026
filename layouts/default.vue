@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import groq from 'groq'
+import { PortableText } from '@portabletext/vue'
+
 const navLinks = [
   { label: 'Originals', to: '/originals' },
-  { label: 'Prints', to: '/shop/prints' },
-  { label: 'Gifts', to: '/shop/gifts' },
+  { label: 'Prints & Canvas', to: '/shop/prints' },
+  { label: 'Calendars & Gifts', to: '/shop/gifts' },
   { label: 'About Robert', to: '/about' },
   { label: 'Contact', to: '/contact' },
 ]
@@ -10,6 +13,23 @@ const navLinks = [
 const mobileMenuOpen = ref(false)
 const cart = useCartStore()
 const user = useSupabaseUser()
+
+const { data: announcement } = await useSanityQuery<{
+  enabled: boolean
+  text: any[]
+  tone: string
+}>(groq`*[_id == "announcementBanner"][0]{ enabled, text, tone }`)
+
+const showAnnouncement = computed(
+  () => announcement.value?.enabled && (announcement.value?.text?.length ?? 0) > 0,
+)
+
+const toneClasses: Record<string, string> = {
+  dark: 'bg-brown text-cream',
+  rust: 'bg-rust text-cream',
+  sage: 'bg-sage text-cream',
+  cream: 'bg-cream text-brown border-b border-brown/10',
+}
 </script>
 
 <template>
@@ -19,7 +39,7 @@ const user = useSupabaseUser()
       <div class="max-w-7xl mx-auto px-6 lg:px-10 flex items-center justify-between h-16 lg:h-20">
 
         <!-- Logo -->
-        <NuxtLink to="/" class="font-heading text-xl lg:text-2xl text-brown tracking-wide">
+        <NuxtLink to="/" class="font-heading text-2xl lg:text-3xl text-brown tracking-wide">
           Robert Duncan Fine Art
         </NuxtLink>
 
@@ -136,6 +156,19 @@ const user = useSupabaseUser()
         </NuxtLink>
       </div>
     </header>
+
+    <!-- Announcement banner -->
+    <div
+      v-if="showAnnouncement"
+      :class="toneClasses[announcement?.tone ?? 'dark'] ?? toneClasses.dark"
+      class="px-6 lg:px-10 py-2.5 text-center"
+    >
+      <div
+        class="max-w-7xl mx-auto font-ui text-xs md:text-sm tracking-wide [&_a]:underline [&_a]:underline-offset-2 [&_strong]:font-semibold"
+      >
+        <PortableText :value="announcement.text" />
+      </div>
+    </div>
 
     <!-- Page content -->
     <main class="flex-1">
