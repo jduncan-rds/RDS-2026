@@ -29,3 +29,4 @@ logs
 # Import script outputs (generated)
 import-report.txt
 products_export.csv
+size-report.csv
