@@ -36,6 +36,25 @@ export const product = defineType({
       hidden: ({ document }) => document?.productType !== 'original',
     }),
     defineField({
+      name: 'originalForSale',
+      title: 'Available for Online Purchase',
+      type: 'boolean',
+      initialValue: true,
+      description:
+        'Turn OFF if this original is reserved or contracted elsewhere (e.g. consigned to a gallery). The painting stays visible on the site but cannot be added to the cart — the note below is shown instead.',
+      hidden: ({ document }) => document?.productType !== 'original',
+    }),
+    defineField({
+      name: 'originalUnavailableNote',
+      title: 'Where to Purchase (note)',
+      type: 'text',
+      rows: 3,
+      description:
+        'Shown instead of the Buy button when online purchase is turned off. Tell visitors where this painting can be acquired, e.g. "On display at the Smith Gallery, Carmel — contact them to purchase."',
+      hidden: ({ document }) =>
+        document?.productType !== 'original' || document?.originalForSale !== false,
+    }),
+    defineField({
       name: 'simplePrice',
       title: 'Price (USD)',
       type: 'number',

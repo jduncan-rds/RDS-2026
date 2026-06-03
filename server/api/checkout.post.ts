@@ -64,6 +64,7 @@ export default defineEventHandler(async (event) => {
         _id,
         productType,
         originalPrice,
+        originalForSale,
         simplePrice,
         simpleSku,
         simpleInStock,
@@ -132,6 +133,13 @@ export default defineEventHandler(async (event) => {
         throw createError({
           statusCode: 409,
           statusMessage: `Sorry, "${item.title}" is no longer available.`,
+        })
+      }
+      // Reserved/consigned elsewhere: visible but not purchasable online.
+      if (product.originalForSale === false) {
+        throw createError({
+          statusCode: 409,
+          statusMessage: `"${item.title}" is not available for online purchase.`,
         })
       }
       unitAmountCents = Math.round(product.originalPrice * 100)

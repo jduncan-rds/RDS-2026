@@ -11,6 +11,8 @@ const { data: product } = await useSanityQuery(groq`
     _id,
     productType,
     originalPrice,
+    originalForSale,
+    originalUnavailableNote,
     simplePrice,
     simpleSku,
     simpleInStock,
@@ -47,6 +49,11 @@ if (!product.value) {
 
 const artwork = computed(() => product.value?.artwork)
 const isOriginal = computed(() => product.value?.productType === 'original')
+// An original is buyable only if its artwork is available AND it hasn't been
+// flagged not-for-online-purchase (e.g. consigned to a gallery).
+const originalAvailable = computed(() => artwork.value?.status === 'available')
+const originalForSale = computed(() => product.value?.originalForSale !== false)
+const originalBuyable = computed(() => originalAvailable.value && originalForSale.value)
 const isSimple = computed(() =>
   ['calendar', 'card', 'gift'].includes(product.value?.productType ?? ''),
 )
@@ -247,10 +254,20 @@ useSeoMeta({
           <p class="font-heading text-3xl text-brown mb-8">
             ${{ product?.originalPrice?.toLocaleString() }}
           </p>
-          <div v-if="artwork?.status === 'available'">
+          <div v-if="originalBuyable">
             <AppButton variant="primary" size="lg" class="w-full sm:w-auto" @click="addToCart">
               {{ addedToCart ? 'Added to Cart ✓' : 'Add to Cart' }}
             </AppButton>
+          </div>
+          <!-- Available but reserved/consigned elsewhere: show where to buy -->
+          <div v-else-if="originalAvailable && !originalForSale">
+            <p class="font-ui text-xs tracking-widest uppercase text-brown/50 mb-3">Not available for online purchase</p>
+            <p
+              v-if="product?.originalUnavailableNote"
+              class="font-body text-brown/70 leading-relaxed whitespace-pre-line max-w-prose"
+            >
+              {{ product.originalUnavailableNote }}
+            </p>
           </div>
           <p v-else class="font-ui text-xs tracking-widest uppercase text-brown/40">This piece has been sold.</p>
         </template>
