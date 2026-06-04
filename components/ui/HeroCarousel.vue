@@ -2,7 +2,18 @@
 const props = defineProps<{
   images: any[]
   headline?: string
+  headlineSize?: string
 }>()
+
+const headlineSizeClasses: Record<string, string> = {
+  small: 'text-3xl md:text-4xl',
+  medium: 'text-4xl md:text-6xl',
+  large: 'text-5xl md:text-7xl',
+  xlarge: 'text-6xl md:text-8xl',
+}
+const headlineClass = computed(
+  () => headlineSizeClasses[props.headlineSize ?? 'medium'] ?? headlineSizeClasses.medium,
+)
 
 const current = ref(0)
 let timer: ReturnType<typeof setInterval> | null = null
@@ -46,7 +57,7 @@ onUnmounted(() => {
     <div v-if="headline || $slots.default" class="absolute bottom-0 left-0 right-0 p-10 lg:p-16">
       <div class="max-w-7xl mx-auto">
         <slot>
-          <h2 v-if="headline" class="font-heading text-cream text-4xl md:text-6xl">
+          <h2 v-if="headline" class="font-heading text-cream" :class="headlineClass">
             {{ headline }}
           </h2>
         </slot>

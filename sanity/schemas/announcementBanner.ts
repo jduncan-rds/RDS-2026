@@ -18,12 +18,17 @@ export const announcementBanner = defineType({
       title: 'Announcement Text',
       type: 'array',
       description:
-        'Shows under the navigation bar on every page. Highlight text and use the toolbar for Bold, Italic, or a link.',
+        'Shows under the navigation bar on every page. Highlight text and use the toolbar for Bold, Italic, a link, or the Style dropdown to make text Large / Extra Large. The banner grows to fit. Best kept to one or two short lines.',
       of: [
         {
           type: 'block',
-          // Keep it to a single inline line — no headings or lists.
-          styles: [{ title: 'Normal', value: 'normal' }],
+          // Size is chosen via the Style dropdown (rendered larger in the
+          // banner). No lists — this is a short headline, not a document.
+          styles: [
+            { title: 'Normal', value: 'normal' },
+            { title: 'Large', value: 'h3' },
+            { title: 'Extra Large', value: 'h2' },
+          ],
           lists: [],
           marks: {
             decorators: [

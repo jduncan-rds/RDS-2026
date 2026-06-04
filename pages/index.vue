@@ -10,6 +10,12 @@ const { data: homepage } = await useSanityQuery(groq`
   *[_type == "homepageSettings"][0]{
     heroImages,
     heroHeadline,
+    heroHeadlineSize,
+    heroQuote,
+    heroQuoteAttribution,
+    heroQuoteFont,
+    heroQuoteSize,
+    heroQuoteBackground,
     featuredProducts[]->{
       _id,
       productType,
@@ -29,13 +35,50 @@ const productTypeLabels: Record<string, string> = {
   card: 'Greeting Card',
   gift: 'Gift',
 }
+
+// Hero quote styling driven by Sanity choices.
+const quoteFontClasses: Record<string, string> = {
+  heading: 'font-heading',
+  body: 'font-body',
+  ui: 'font-ui',
+}
+const quoteSizeClasses: Record<string, string> = {
+  small: 'text-xl md:text-2xl',
+  medium: 'text-2xl md:text-3xl',
+  large: 'text-3xl md:text-4xl',
+  xlarge: 'text-4xl md:text-5xl',
+}
+const quoteBgClasses: Record<string, string> = {
+  none: '',
+  soft: 'bg-brown/5',
+  sage: 'bg-sage',
+  rust: 'bg-rust',
+  dark: 'bg-brown',
+}
+const quoteFontClass = computed(
+  () => quoteFontClasses[homepage.value?.heroQuoteFont ?? 'heading'] ?? quoteFontClasses.heading,
+)
+const quoteSizeClass = computed(
+  () => quoteSizeClasses[homepage.value?.heroQuoteSize ?? 'medium'] ?? quoteSizeClasses.medium,
+)
+const quoteBgClass = computed(
+  () => quoteBgClasses[homepage.value?.heroQuoteBackground ?? 'none'] ?? '',
+)
+// Colored backgrounds need light text for contrast.
+const quoteOnColor = computed(() =>
+  ['sage', 'rust', 'dark'].includes(homepage.value?.heroQuoteBackground ?? 'none'),
+)
 </script>
 
 <template>
   <div>
     <!-- Hero -->
     <section v-if="homepage?.heroImages?.length">
-      <HeroCarousel :images="homepage.heroImages" :headline="homepage.heroHeadline" />
+      <HeroCarousel
+        :images="homepage.heroImages"
+        :headline="homepage.heroHeadline"
+        :headline-size="homepage.heroHeadlineSize"
+      />
     </section>
     <section v-else class="bg-brown/5 flex items-center justify-center" style="min-height: 75vh;">
       <div class="text-center px-6">
@@ -51,6 +94,25 @@ const productTypeLabels: Record<string, string> = {
           <AppButton as="NuxtLink" to="/shop/prints" variant="secondary" size="lg">Shop Prints</AppButton>
         </div>
       </div>
+    </section>
+
+    <!-- Inspiring quote -->
+    <section v-if="homepage?.heroQuote" class="px-6 lg:px-10 py-16 md:py-20" :class="quoteBgClass">
+      <blockquote class="max-w-4xl mx-auto text-center">
+        <p
+          class="leading-snug whitespace-pre-line"
+          :class="[quoteFontClass, quoteSizeClass, quoteOnColor ? 'text-cream' : 'text-brown']"
+        >
+          {{ homepage.heroQuote }}
+        </p>
+        <footer
+          v-if="homepage.heroQuoteAttribution"
+          class="font-ui text-xs md:text-sm tracking-widest uppercase mt-6"
+          :class="quoteOnColor ? 'text-cream/70' : 'text-brown/50'"
+        >
+          {{ homepage.heroQuoteAttribution }}
+        </footer>
+      </blockquote>
     </section>
 
     <!-- Featured work -->

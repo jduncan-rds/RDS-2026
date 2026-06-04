@@ -161,10 +161,10 @@ const toneClasses: Record<string, string> = {
     <div
       v-if="showAnnouncement"
       :class="toneClasses[announcement?.tone ?? 'dark'] ?? toneClasses.dark"
-      class="px-6 lg:px-10 py-2.5 text-center"
+      class="px-6 lg:px-10 py-4 text-center"
     >
       <div
-        class="max-w-7xl mx-auto font-ui text-xs md:text-sm tracking-wide [&_a]:underline [&_a]:underline-offset-2 [&_strong]:font-semibold"
+        class="max-w-7xl mx-auto font-ui tracking-wide text-sm md:text-base [&_a]:underline [&_a]:underline-offset-2 [&_strong]:font-semibold [&_h3]:font-heading [&_h3]:text-lg md:[&_h3]:text-xl [&_h2]:font-heading [&_h2]:text-xl md:[&_h2]:text-2xl"
       >
         <PortableText :value="announcement.text" />
       </div>
