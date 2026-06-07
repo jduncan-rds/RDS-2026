@@ -14,7 +14,7 @@ const { data } = await useSanityQuery<{
   banner: any
   pricingRules: PricingRules | null
 }>(groq`{
-  "products": *[_type == "product" && productType == "print"] | order(_createdAt desc) {
+  "products": *[_type == "product" && productType == "print"] | order(artwork->title asc) {
     _id,
     variants,
     artwork->{
@@ -51,6 +51,7 @@ watch(
   },
 )
 const showNewOnly = ref(false)
+const showOpenEditionOnly = ref(false)
 
 // Search — initialized from ?q= and kept in sync (replaceState so we don't pollute history)
 const searchQuery = ref<string>(route.query.q ? String(route.query.q) : '')
@@ -73,12 +74,17 @@ watch(
 )
 
 const hasActiveFilters = computed(
-  () => activeCategories.value.length > 0 || showNewOnly.value || searchQuery.value.trim().length > 0,
+  () =>
+    activeCategories.value.length > 0 ||
+    showNewOnly.value ||
+    showOpenEditionOnly.value ||
+    searchQuery.value.trim().length > 0,
 )
 
 function clearAllFilters() {
   activeCategories.value = []
   showNewOnly.value = false
+  showOpenEditionOnly.value = false
   searchQuery.value = ''
 }
 
@@ -97,6 +103,11 @@ const filtered = computed(() => {
   }
   if (showNewOnly.value) {
     result = result.filter((p: any) => p.artwork?.isNew)
+  }
+  if (showOpenEditionOnly.value) {
+    result = result.filter((p: any) =>
+      (p.variants ?? []).some((v: any) => v.mediaType === 'open_edition'),
+    )
   }
   const q = searchQuery.value.trim().toLowerCase()
   if (q) {
@@ -170,6 +181,16 @@ function startingPrice(product: any): number | null {
               ✕
             </button>
           </div>
+          <button
+            type="button"
+            :class="[
+              'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200 whitespace-nowrap',
+              showOpenEditionOnly ? 'bg-rust text-cream border-rust' : 'bg-transparent text-brown border-brown/40 hover:border-brown',
+            ]"
+            @click="showOpenEditionOnly = !showOpenEditionOnly"
+          >
+            Open Edition Prints
+          </button>
           <button
             v-if="hasActiveFilters"
             type="button"
