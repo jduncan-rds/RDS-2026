@@ -78,6 +78,16 @@ export function computeVariantPrice(
   return roundToNearest(floored, rules.roundTo || 1)
 }
 
+/**
+ * Final per-unit print price = base variant price + frame modifier, rounded
+ * UP to the next whole dollar so customers never see odd cents (e.g. the
+ * per-sq-in frame charge turning $329.75 into $330). Used by both the product
+ * page display and the authoritative server checkout so they stay in sync.
+ */
+export function computePrintTotal(base: number, frameModifier: number): number {
+  return Math.ceil(base + frameModifier)
+}
+
 export function computeFrameModifier(
   frame: FramePricingData | null,
   size: string | null,

@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 import { serverSupabaseUser } from '#supabase/server'
 import { createSanityClient } from '../utils/sanity'
 import { createSupabaseAdmin } from '../utils/supabase'
-import { computeVariantPrice, computeFrameModifier } from '../../utils/pricing'
+import { computeVariantPrice, computeFrameModifier, computePrintTotal } from '../../utils/pricing'
 import type { PricingRules, FramePricingData, PrintMediaType } from '../../utils/pricing'
 
 type CartItemKind = 'original' | PrintMediaType | 'simple'
@@ -192,7 +192,7 @@ export default defineEventHandler(async (event) => {
       const frame: FramePricingData | null = item.frameId ? frameMap[item.frameId] ?? null : null
       const frameModifier = computeFrameModifier(frame, item.size)
 
-      unitAmountCents = Math.round((base + frameModifier) * 100)
+      unitAmountCents = Math.round(computePrintTotal(base, frameModifier) * 100)
     }
 
     const mediaTypeLabel: Record<string, string> = {

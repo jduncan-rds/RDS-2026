@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import groq from 'groq'
-import { computeVariantPrice, computeFrameModifier, sqIn, parseSize } from '~/utils/pricing'
+import { computeVariantPrice, computeFrameModifier, computePrintTotal, sqIn, parseSize } from '~/utils/pricing'
 import type { PricingRules } from '~/utils/pricing'
 
 const route = useRoute()
@@ -147,7 +147,7 @@ const displayPrice = computed(() => {
     selectedVariant.value.price,
   )
   if (base === null) return null
-  return base + computeFrameModifier(selectedFrame.value, selectedVariant.value.size)
+  return computePrintTotal(base, computeFrameModifier(selectedFrame.value, selectedVariant.value.size))
 })
 
 // Add to cart
