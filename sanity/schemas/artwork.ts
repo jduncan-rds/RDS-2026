@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { CategoryCheckboxInput } from '../components/CategoryCheckboxInput'
 
 export const artwork = defineType({
   name: 'artwork',
@@ -47,6 +48,7 @@ export const artwork = defineType({
       title: 'Categories',
       type: 'array',
       of: [{ type: 'reference', to: [{ type: 'category' }] }],
+      components: { input: CategoryCheckboxInput },
     }),
     defineField({
       name: 'isNew',
