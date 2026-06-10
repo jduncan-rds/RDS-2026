@@ -43,6 +43,18 @@ const { data: pricingRules } = await useSanityQuery<PricingRules>(groq`
   *[_id == "pricingRules"][0]
 `)
 
+const { data: printTypeInfo } = await useSanityQuery<{
+  openEditionDescription?: string
+  podPaperDescription?: string
+  podCanvasDescription?: string
+}>(groq`
+  *[_id == "printTypeInfo"][0]{
+    openEditionDescription,
+    podPaperDescription,
+    podCanvasDescription
+  }
+`)
+
 if (!product.value) {
   throw createError({ statusCode: 404, statusMessage: 'Product not found' })
 }
@@ -90,6 +102,19 @@ const availableMediaTypes = computed(() =>
 )
 
 const selectedMediaType = ref<string>(availableMediaTypes.value[0]?.value ?? 'open_edition')
+
+// Blurb explaining the currently selected print type (editable in Sanity →
+// Print Type Descriptions). Switches as the customer changes Print Type.
+const mediaTypeDescription = computed(() => {
+  const info = printTypeInfo.value
+  if (!info) return null
+  const byType: Record<string, string | undefined> = {
+    open_edition: info.openEditionDescription,
+    pod_paper: info.podPaperDescription,
+    pod_canvas: info.podCanvasDescription,
+  }
+  return byType[selectedMediaType.value]?.trim() || null
+})
 const selectedSize = ref<string | null>(null)
 const selectedFrameId = ref<string | null>(null)
 const quantity = ref(1)
@@ -353,6 +378,12 @@ useSeoMeta({
                 {{ mt.label }}
               </button>
             </div>
+            <p
+              v-if="mediaTypeDescription"
+              class="font-body text-sm text-brown/60 leading-relaxed mt-3"
+            >
+              {{ mediaTypeDescription }}
+            </p>
           </div>
 
           <!-- Size selector -->

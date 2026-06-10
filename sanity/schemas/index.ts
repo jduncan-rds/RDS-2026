@@ -4,6 +4,7 @@ import { category } from './category'
 import { frame } from './frame'
 import { homepageSettings } from './homepageSettings'
 import { pricingRules } from './pricingRules'
+import { printTypeInfo } from './printTypeInfo'
 import { product } from './product'
 import { siteSettings } from './siteSettings'
 import { storeBanner } from './storeBanner'
@@ -18,4 +19,5 @@ export const schemaTypes = [
   storeBanner,
   siteSettings,
   pricingRules,
+  printTypeInfo,
 ]

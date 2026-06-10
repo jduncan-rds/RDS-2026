@@ -9,6 +9,7 @@ const singletons = [
   'storeBanner',
   'siteSettings',
   'pricingRules',
+  'printTypeInfo',
 ]
 
 export default defineConfig({
@@ -80,6 +81,14 @@ export default defineConfig({
                 S.document()
                   .schemaType('pricingRules')
                   .documentId('pricingRules'),
+              ),
+            S.listItem()
+              .title('Print Type Descriptions')
+              .id('printTypeInfo')
+              .child(
+                S.document()
+                  .schemaType('printTypeInfo')
+                  .documentId('printTypeInfo'),
               ),
           ]),
     }),
