@@ -360,7 +360,7 @@ useSeoMeta({
         <!-- Print: full selector UI -->
         <template v-else>
           <!-- Media type selector -->
-          <div class="mb-8">
+          <div class="mb-5">
             <p class="font-ui text-xs tracking-widest uppercase text-brown/60 mb-3">Print Type</p>
             <div class="flex flex-wrap gap-3">
               <button
