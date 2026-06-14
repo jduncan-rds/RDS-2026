@@ -18,13 +18,6 @@ export const pricingBand = defineType({
       validation: (r) => r.min(0),
     }),
     defineField({
-      name: 'openEditionMinPrice',
-      title: 'Open Edition — Minimum price (USD)',
-      type: 'number',
-      initialValue: 0,
-      validation: (r) => r.min(0),
-    }),
-    defineField({
       name: 'podPaperRatePerSqIn',
       title: 'Custom Print (paper) — Rate per sq inch (USD)',
       type: 'number',

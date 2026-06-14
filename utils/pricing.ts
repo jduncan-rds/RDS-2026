@@ -1,6 +1,5 @@
 export interface BandRates {
   openEditionRatePerSqIn?: number
-  openEditionMinPrice?: number
   podPaperRatePerSqIn?: number
   podPaperMinPrice?: number
   podCanvasRatePerSqIn?: number
@@ -93,7 +92,6 @@ function resolveBandRates(rules: PricingRules, area: number): BandRates {
   if (!hasBands) {
     return {
       openEditionRatePerSqIn: rules.openEditionRatePerSqIn,
-      openEditionMinPrice: rules.openEditionMinPrice,
       podPaperRatePerSqIn: rules.podPaperRatePerSqIn,
       podPaperMinPrice: rules.podPaperMinPrice,
       podCanvasRatePerSqIn: rules.podCanvasRatePerSqIn,
@@ -122,7 +120,7 @@ export function computeVariantPrice(
 
   if (mediaType === 'open_edition') {
     rate = band.openEditionRatePerSqIn
-    min = band.openEditionMinPrice
+    min = 0 // open edition has no minimum price floor
   } else if (mediaType === 'pod_paper') {
     rate = band.podPaperRatePerSqIn
     min = band.podPaperMinPrice

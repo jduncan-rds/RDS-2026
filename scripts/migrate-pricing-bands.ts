@@ -27,6 +27,9 @@ const DRY_RUN = process.argv.includes('--dry-run')
 // removes the now-orphaned legacy single-rate fields (clears the Studio
 // "Unknown fields" warning).
 const CLEANUP = process.argv.includes('--cleanup-legacy')
+// Removes the open-edition minimum-price floor from all bands (feature removed:
+// open editions no longer have a price floor).
+const DROP_OE_MIN = process.argv.includes('--drop-openedition-min')
 
 const client = createClient({
   projectId: 'pwxocvdd',
@@ -147,6 +150,23 @@ async function main() {
   if (CLEANUP) {
     console.log(DRY_RUN ? '=== DRY RUN: cleanup ===' : '=== CLEANUP LEGACY FIELDS ===')
     await cleanupLegacy()
+    console.log('Done.')
+    return
+  }
+  if (DROP_OE_MIN) {
+    console.log(DRY_RUN ? '=== DRY RUN: drop OE min ===' : '=== DROP OPEN-EDITION MIN ===')
+    console.log('• pricingRules: unsetting openEditionMinPrice on bands A/B/C')
+    if (!DRY_RUN) {
+      await client
+        .patch('pricingRules')
+        .unset([
+          'bandA.openEditionMinPrice',
+          'bandB.openEditionMinPrice',
+          'bandC.openEditionMinPrice',
+        ])
+        .commit()
+      console.log('  ✓ removed')
+    }
     console.log('Done.')
     return
   }
