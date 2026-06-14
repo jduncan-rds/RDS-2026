@@ -75,18 +75,26 @@ export default defineEventHandler(async (event) => {
     ),
     frameIds.length > 0
       ? sanity.fetch<any[]>(
-          `*[_type == "frame" && _id in $ids] { _id, priceModifier, frameRateType, ratePerSqIn }`,
+          `*[_type == "frame" && _id in $ids] {
+            _id, priceModifier, frameRateType,
+            ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqIn
+          }`,
           { ids: frameIds },
         )
       : Promise.resolve([] as any[]),
     sanity.fetch<PricingRules>(`*[_id == "pricingRules"][0]`),
   ])
 
-  if (
-    !rules?.openEditionRatePerSqIn ||
-    !rules?.podPaperRatePerSqIn ||
-    !rules?.podCanvasRatePerSqIn
-  ) {
+  // Pricing must be configured either as size bands (current model) or via the
+  // legacy single-rate fields (fallback during rollout). Per-item null checks
+  // below catch any specific missing rate.
+  const hasBandPricing = !!(rules?.bandA || rules?.bandB || rules?.bandC)
+  const hasLegacyPricing = !!(
+    rules?.openEditionRatePerSqIn &&
+    rules?.podPaperRatePerSqIn &&
+    rules?.podCanvasRatePerSqIn
+  )
+  if (!rules || (!hasBandPricing && !hasLegacyPricing)) {
     throw createError({
       statusCode: 500,
       statusMessage: 'Pricing configuration is incomplete. Please contact us.',
@@ -190,7 +198,7 @@ export default defineEventHandler(async (event) => {
       }
 
       const frame: FramePricingData | null = item.frameId ? frameMap[item.frameId] ?? null : null
-      const frameModifier = computeFrameModifier(frame, item.size)
+      const frameModifier = computeFrameModifier(frame, item.size, rules)
 
       unitAmountCents = Math.round(computePrintTotal(base, frameModifier) * 100)
     }

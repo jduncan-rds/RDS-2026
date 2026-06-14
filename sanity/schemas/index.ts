@@ -3,6 +3,7 @@ import { artwork } from './artwork'
 import { category } from './category'
 import { frame } from './frame'
 import { homepageSettings } from './homepageSettings'
+import { pricingBand } from './pricingBand'
 import { pricingRules } from './pricingRules'
 import { printTypeInfo } from './printTypeInfo'
 import { product } from './product'
@@ -18,6 +19,7 @@ export const schemaTypes = [
   announcementBanner,
   storeBanner,
   siteSettings,
+  pricingBand,
   pricingRules,
   printTypeInfo,
 ]

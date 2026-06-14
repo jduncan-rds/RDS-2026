@@ -4,45 +4,49 @@ export const pricingRules = defineType({
   name: 'pricingRules',
   title: 'Pricing Rules',
   type: 'document',
+  description:
+    'Print prices are computed from area (square inches) × a per-sq-inch rate. ' +
+    'Rates are split into three size bands so larger prints can carry a lower ' +
+    'per-inch rate. A print falls into a band by its total square inches.',
   fields: [
     defineField({
-      name: 'openEditionRatePerSqIn',
-      title: 'Open Edition — Rate per sq inch (USD)',
+      name: 'bandAMaxSqIn',
+      title: 'Band A (Small) — upper limit, sq inches',
       type: 'number',
+      description: 'Prints with area up to this value use Band A rates. e.g. 250',
+      initialValue: 250,
       validation: (r) => r.required().positive(),
     }),
     defineField({
-      name: 'podPaperRatePerSqIn',
-      title: 'Custom Print — Rate per sq inch (USD)',
+      name: 'bandBMaxSqIn',
+      title: 'Band B (Medium) — upper limit, sq inches',
       type: 'number',
-      validation: (r) => r.required().positive(),
+      description:
+        'Prints larger than Band A and up to this value use Band B rates. ' +
+        'Anything larger than this uses Band C (Large). e.g. 500',
+      initialValue: 500,
+      validation: (r) =>
+        r.required().positive().custom((val, ctx) => {
+          const a = (ctx.document?.bandAMaxSqIn as number) ?? 0
+          if (typeof val === 'number' && val <= a)
+            return 'Band B limit must be greater than Band A limit'
+          return true
+        }),
     }),
     defineField({
-      name: 'podCanvasRatePerSqIn',
-      title: 'Custom Canvas — Rate per sq inch (USD)',
-      type: 'number',
-      validation: (r) => r.required().positive(),
+      name: 'bandA',
+      title: 'Band A (Small) rates',
+      type: 'pricingBand',
     }),
     defineField({
-      name: 'openEditionMinPrice',
-      title: 'Open Edition — Minimum price (USD)',
-      type: 'number',
-      initialValue: 0,
-      validation: (r) => r.required().min(0),
+      name: 'bandB',
+      title: 'Band B (Medium) rates',
+      type: 'pricingBand',
     }),
     defineField({
-      name: 'podPaperMinPrice',
-      title: 'Custom Print — Minimum price (USD)',
-      type: 'number',
-      initialValue: 0,
-      validation: (r) => r.required().min(0),
-    }),
-    defineField({
-      name: 'podCanvasMinPrice',
-      title: 'Custom Canvas — Minimum price (USD)',
-      type: 'number',
-      initialValue: 0,
-      validation: (r) => r.required().min(0),
+      name: 'bandC',
+      title: 'Band C (Large) rates',
+      type: 'pricingBand',
     }),
     defineField({
       name: 'roundTo',

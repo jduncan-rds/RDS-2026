@@ -35,7 +35,8 @@ const { data: product } = await useSanityQuery(groq`
 
 const { data: frames } = await useSanityQuery(groq`
   *[_type == "frame"] | order(displayOrder asc) {
-    _id, name, barImage, thumbnail, priceModifier, frameRateType, ratePerSqIn, mouldingInches
+    _id, name, barImage, thumbnail, priceModifier, frameRateType,
+    ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqIn, mouldingInches
   }
 `)
 
@@ -172,7 +173,10 @@ const displayPrice = computed(() => {
     selectedVariant.value.price,
   )
   if (base === null) return null
-  return computePrintTotal(base, computeFrameModifier(selectedFrame.value, selectedVariant.value.size))
+  return computePrintTotal(
+    base,
+    computeFrameModifier(selectedFrame.value, selectedVariant.value.size, pricingRules.value),
+  )
 })
 
 // Add to cart

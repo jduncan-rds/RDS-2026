@@ -59,17 +59,28 @@ export const frame = defineType({
       initialValue: 0,
     }),
     defineField({
-      name: 'ratePerSqIn',
-      title: 'Rate per sq inch (USD)',
+      name: 'ratePerSqInA',
+      title: 'Band A (Small) — Rate per sq inch (USD)',
       type: 'number',
-      description: 'Used when pricing method is Per square inch. e.g. 0.20',
+      description: 'Used when pricing method is Per square inch, for small prints. e.g. 0.20',
       hidden: ({ document }) => document?.frameRateType !== 'per_sq_in',
-      validation: (r) =>
-        r.custom((val, ctx) => {
-          if (ctx.document?.frameRateType === 'per_sq_in' && (!val || val <= 0))
-            return 'Required when using per-square-inch pricing'
-          return true
-        }),
+      validation: (r) => r.min(0),
+    }),
+    defineField({
+      name: 'ratePerSqInB',
+      title: 'Band B (Medium) — Rate per sq inch (USD)',
+      type: 'number',
+      description: 'Per-sq-inch rate for medium prints. Typically lower than Band A.',
+      hidden: ({ document }) => document?.frameRateType !== 'per_sq_in',
+      validation: (r) => r.min(0),
+    }),
+    defineField({
+      name: 'ratePerSqInC',
+      title: 'Band C (Large) — Rate per sq inch (USD)',
+      type: 'number',
+      description: 'Per-sq-inch rate for large prints. Typically lowest.',
+      hidden: ({ document }) => document?.frameRateType !== 'per_sq_in',
+      validation: (r) => r.min(0),
     }),
     defineField({
       name: 'displayOrder',
