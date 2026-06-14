@@ -23,6 +23,10 @@ import * as dotenv from 'dotenv'
 dotenv.config()
 
 const DRY_RUN = process.argv.includes('--dry-run')
+// Run AFTER the banded frontend code is deployed and bands are populated:
+// removes the now-orphaned legacy single-rate fields (clears the Studio
+// "Unknown fields" warning).
+const CLEANUP = process.argv.includes('--cleanup-legacy')
 
 const client = createClient({
   projectId: 'pwxocvdd',
@@ -98,10 +102,53 @@ async function migrateFrames() {
   }
 }
 
+async function cleanupLegacy() {
+  // pricingRules: drop legacy top-level rate/min fields (only safe once bands
+  // are populated and the banded code is deployed).
+  const doc = await client.fetch<any>(`*[_id == "pricingRules"][0]{ _id, bandA }`)
+  if (doc?.bandA?.openEditionRatePerSqIn == null) {
+    console.log('• cleanup aborted: bands not populated — run the migration first')
+    return
+  }
+  console.log('• pricingRules: removing legacy top-level fields')
+  if (!DRY_RUN) {
+    await client
+      .patch('pricingRules')
+      .unset([
+        'openEditionRatePerSqIn',
+        'podPaperRatePerSqIn',
+        'podCanvasRatePerSqIn',
+        'openEditionMinPrice',
+        'podPaperMinPrice',
+        'podCanvasMinPrice',
+      ])
+      .commit()
+    console.log('  ✓ legacy pricingRules fields removed')
+  }
+
+  // frames: drop legacy ratePerSqIn where the banded rates now exist.
+  const frames = await client.fetch<any[]>(
+    `*[_type == "frame" && defined(ratePerSqIn) && defined(ratePerSqInA)]{ _id, name }`,
+  )
+  for (const f of frames) {
+    console.log(`• frame "${f.name}": removing legacy ratePerSqIn`)
+    if (!DRY_RUN) {
+      await client.patch(f._id).unset(['ratePerSqIn']).commit()
+      console.log(`  ✓ ${f.name} cleaned`)
+    }
+  }
+}
+
 async function main() {
   if (!process.env.SANITY_API_TOKEN) {
     console.error('SANITY_API_TOKEN missing in .env')
     process.exit(1)
+  }
+  if (CLEANUP) {
+    console.log(DRY_RUN ? '=== DRY RUN: cleanup ===' : '=== CLEANUP LEGACY FIELDS ===')
+    await cleanupLegacy()
+    console.log('Done.')
+    return
   }
   console.log(DRY_RUN ? '=== DRY RUN (no writes) ===' : '=== MIGRATING ===')
   await migratePricingRules()
