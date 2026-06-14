@@ -1,9 +1,7 @@
 export interface BandRates {
   openEditionRatePerSqIn?: number
   podPaperRatePerSqIn?: number
-  podPaperMinPrice?: number
   podCanvasRatePerSqIn?: number
-  podCanvasMinPrice?: number
 }
 
 export interface PricingRules {
@@ -21,9 +19,6 @@ export interface PricingRules {
   openEditionRatePerSqIn?: number
   podPaperRatePerSqIn?: number
   podCanvasRatePerSqIn?: number
-  openEditionMinPrice?: number
-  podPaperMinPrice?: number
-  podCanvasMinPrice?: number
 }
 
 export interface FramePricingData {
@@ -93,9 +88,7 @@ function resolveBandRates(rules: PricingRules, area: number): BandRates {
     return {
       openEditionRatePerSqIn: rules.openEditionRatePerSqIn,
       podPaperRatePerSqIn: rules.podPaperRatePerSqIn,
-      podPaperMinPrice: rules.podPaperMinPrice,
       podCanvasRatePerSqIn: rules.podCanvasRatePerSqIn,
-      podCanvasMinPrice: rules.podCanvasMinPrice,
     }
   }
   const key = selectBandKey(rules, area)
@@ -115,25 +108,19 @@ export function computeVariantPrice(
 
   const band = resolveBandRates(rules, area)
 
+  // No minimum-price floors — price is purely area × rate per media type.
   let rate: number | undefined
-  let min: number | undefined
-
   if (mediaType === 'open_edition') {
     rate = band.openEditionRatePerSqIn
-    min = 0 // open edition has no minimum price floor
   } else if (mediaType === 'pod_paper') {
     rate = band.podPaperRatePerSqIn
-    min = band.podPaperMinPrice
   } else {
     rate = band.podCanvasRatePerSqIn
-    min = band.podCanvasMinPrice
   }
 
   if (!rate || rate <= 0) return null
 
-  const computed = area * rate
-  const floored = Math.max(computed, min ?? 0)
-  return roundToNearest(floored, rules.roundTo || 1)
+  return roundToNearest(area * rate, rules.roundTo || 1)
 }
 
 /**

@@ -30,6 +30,9 @@ const CLEANUP = process.argv.includes('--cleanup-legacy')
 // Removes the open-edition minimum-price floor from all bands (feature removed:
 // open editions no longer have a price floor).
 const DROP_OE_MIN = process.argv.includes('--drop-openedition-min')
+// Removes ALL minimum-price floors (open edition / paper / canvas) from every
+// band. Minimums removed entirely — price is purely area × rate.
+const DROP_ALL_MINS = process.argv.includes('--drop-all-mins')
 
 const client = createClient({
   projectId: 'pwxocvdd',
@@ -150,6 +153,25 @@ async function main() {
   if (CLEANUP) {
     console.log(DRY_RUN ? '=== DRY RUN: cleanup ===' : '=== CLEANUP LEGACY FIELDS ===')
     await cleanupLegacy()
+    console.log('Done.')
+    return
+  }
+  if (DROP_ALL_MINS) {
+    console.log(DRY_RUN ? '=== DRY RUN: drop all mins ===' : '=== DROP ALL MINIMUMS ===')
+    console.log('• pricingRules: unsetting all min fields on bands A/B/C')
+    if (!DRY_RUN) {
+      await client
+        .patch('pricingRules')
+        .unset(
+          ['bandA', 'bandB', 'bandC'].flatMap((b) => [
+            `${b}.openEditionMinPrice`,
+            `${b}.podPaperMinPrice`,
+            `${b}.podCanvasMinPrice`,
+          ]),
+        )
+        .commit()
+      console.log('  ✓ removed')
+    }
     console.log('Done.')
     return
   }
