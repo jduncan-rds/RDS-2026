@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { US_STATES } from '~/utils/shipping'
+
 const cart = useCartStore()
 
 const mediaTypeLabel: Record<string, string> = {
@@ -12,14 +14,52 @@ const mediaTypeLabel: Record<string, string> = {
 const isCheckingOut = ref(false)
 const checkoutError = ref<string | null>(null)
 
+// Shipping depends on destination, so the customer picks a state here (before
+// Stripe) and we quote it server-side. Checkout recomputes authoritatively.
+const shipState = ref<string>('')
+const shippingCents = ref<number | null>(null)
+const shippingLoading = ref(false)
+
+const shippingDollars = computed(() =>
+  shippingCents.value == null ? null : shippingCents.value / 100,
+)
+const grandTotal = computed(() => cart.total + (shippingDollars.value ?? 0))
+
+async function quoteShipping() {
+  shippingCents.value = null
+  if (!shipState.value || !cart.items.length) return
+  shippingLoading.value = true
+  try {
+    const { shippingCents: cents } = await $fetch<{ shippingCents: number }>('/api/shipping-quote', {
+      method: 'POST',
+      body: { state: shipState.value, items: cart.items },
+    })
+    shippingCents.value = cents
+  } catch {
+    shippingCents.value = null
+  } finally {
+    shippingLoading.value = false
+  }
+}
+
+// Re-quote when the state changes or the cart contents change.
+watch(shipState, quoteShipping)
+watch(() => cart.items.map((i) => `${i.productId}:${i.size}:${i.quantity}`).join('|'), () => {
+  if (shipState.value) quoteShipping()
+})
+
 async function checkout() {
   if (!cart.items.length) return
+  if (!shipState.value) {
+    checkoutError.value = 'Please select your shipping state to see shipping and continue.'
+    return
+  }
   isCheckingOut.value = true
   checkoutError.value = null
   try {
     const { url } = await $fetch<{ url: string }>('/api/checkout', {
       method: 'POST',
-      body: { items: cart.items },
+      body: { items: cart.items, state: shipState.value },
     })
     if (url) await navigateTo(url, { external: true })
   } catch (err: any) {
@@ -122,7 +162,42 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
           <span class="font-body text-brown/70">Subtotal</span>
           <span class="font-heading text-xl text-brown">${{ cart.total.toLocaleString() }}</span>
         </div>
-        <p class="font-ui text-xs text-brown/40 mb-8">Shipping and taxes calculated at checkout.</p>
+
+        <!-- Shipping destination -->
+        <div class="mt-4 mb-4">
+          <label class="font-ui text-xs tracking-widest uppercase text-brown/50 block mb-2">
+            Ship to
+          </label>
+          <select
+            v-model="shipState"
+            class="w-full font-ui text-sm px-3 py-2 bg-transparent border border-brown/40 text-brown focus:outline-none focus:border-brown"
+          >
+            <option value="" disabled>Select your state…</option>
+            <option v-for="s in US_STATES" :key="s.code" :value="s.code">{{ s.name }}</option>
+          </select>
+        </div>
+
+        <div class="flex justify-between mb-2">
+          <span class="font-body text-brown/70">Shipping</span>
+          <span class="font-body text-brown/80">
+            <template v-if="!shipState">—</template>
+            <template v-else-if="shippingLoading">…</template>
+            <template v-else-if="shippingDollars === 0">Free</template>
+            <template v-else-if="shippingDollars != null">${{ shippingDollars.toLocaleString() }}</template>
+            <template v-else>—</template>
+          </span>
+        </div>
+
+        <div class="flex justify-between items-baseline mt-4 pt-4 border-t border-brown/10 mb-2">
+          <span class="font-body text-brown">Total</span>
+          <span class="font-heading text-2xl text-brown">
+            ${{ (shipState && shippingDollars != null ? grandTotal : cart.total).toLocaleString() }}
+          </span>
+        </div>
+        <p v-if="!shipState" class="font-ui text-xs text-brown/40 mb-8">
+          Select your state to calculate shipping. Taxes calculated at checkout.
+        </p>
+        <p v-else class="font-ui text-xs text-brown/40 mb-8">Taxes calculated at checkout.</p>
 
         <p v-if="checkoutError" class="font-body text-sm text-rust mb-4">{{ checkoutError }}</p>
 

@@ -80,6 +80,16 @@ async function seed() {
       roundTo: 1,
       notes: 'Initial rates — adjust in Studio to match your actual margins.',
     },
+    {
+      _id: 'shippingRates',
+      _type: 'shippingRates',
+      // Size bands reuse Pricing Rules thresholds (A ≤250, B ≤500, C larger).
+      bandA: { zone1: 9, zone2: 12, zone3: 15 },
+      bandB: { zone1: 15, zone2: 20, zone3: 25 },
+      bandC: { zone1: 25, zone2: 35, zone3: 45 },
+      perAdditionalItem: 6,
+      notes: 'Starter shipping matrix — adjust in Studio to match real costs.',
+    },
   ]
 
   console.log('Creating singletons...')

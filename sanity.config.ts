@@ -10,6 +10,7 @@ const singletons = [
   'siteSettings',
   'pricingRules',
   'printTypeInfo',
+  'shippingRates',
 ]
 
 export default defineConfig({
@@ -89,6 +90,14 @@ export default defineConfig({
                 S.document()
                   .schemaType('printTypeInfo')
                   .documentId('printTypeInfo'),
+              ),
+            S.listItem()
+              .title('Shipping Rates')
+              .id('shippingRates')
+              .child(
+                S.document()
+                  .schemaType('shippingRates')
+                  .documentId('shippingRates'),
               ),
           ]),
     }),

@@ -4,6 +4,8 @@ import { createSanityClient } from '../utils/sanity'
 import { createSupabaseAdmin } from '../utils/supabase'
 import { computeVariantPrice, computeFrameModifier, computePrintTotal } from '../../utils/pricing'
 import type { PricingRules, FramePricingData, PrintMediaType } from '../../utils/pricing'
+import { computeShippingCents } from '../utils/shipping'
+import { isValidState } from '../../utils/shipping'
 
 type CartItemKind = 'original' | PrintMediaType | 'simple'
 
@@ -27,9 +29,14 @@ export default defineEventHandler(async (event) => {
 
   const body = await readBody(event)
   const items: CartItemPayload[] = body?.items
+  const shipState: string = body?.state
 
   if (!Array.isArray(items) || items.length === 0) {
     throw createError({ statusCode: 400, statusMessage: 'Cart is empty.' })
+  }
+
+  if (!isValidState(shipState)) {
+    throw createError({ statusCode: 400, statusMessage: 'A valid US shipping state is required.' })
   }
 
   // Per-line quantity cap. Higher than any real order we expect (no one's
@@ -245,7 +252,24 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const orderTotalCents = orderItemRows.reduce((sum, r) => sum + r.unit_price * r.quantity, 0)
+  const merchandiseCents = orderItemRows.reduce((sum, r) => sum + r.unit_price * r.quantity, 0)
+
+  // Authoritative shipping: recomputed server-side from the same items + the
+  // destination state (override-or-matrix, size band × zone). Mirrors the
+  // cart-page quote so the customer is charged what they were shown.
+  const { cents: shippingCents } = await computeShippingCents(
+    sanity,
+    orderItemRows.map((r) => ({
+      productId: r.sanity_product_id,
+      size: r.size,
+      mediaType: r.media_type,
+      quantity: r.quantity,
+      unitPriceDollars: r.unit_price / 100,
+    })),
+    shipState,
+  )
+
+  const orderTotalCents = merchandiseCents + shippingCents
 
   // Auth context (Phase 8): if the request carries a Supabase session, we
   // associate the order with the user *and* attach a Stripe Customer to the
@@ -295,6 +319,7 @@ export default defineEventHandler(async (event) => {
     .insert({
       status: 'pending',
       total: orderTotalCents,
+      shipping_amount: shippingCents,
       user_id: authedUserId,
     })
     .select('id')
@@ -328,6 +353,18 @@ export default defineEventHandler(async (event) => {
     line_items: lineItems,
     mode: 'payment',
     shipping_address_collection: { allowed_countries: ['US'] },
+    // Shipping was computed authoritatively above from the destination state.
+    // Present it as a single fixed rate so the customer sees it on Stripe's page
+    // and it's included in amount_total.
+    shipping_options: [
+      {
+        shipping_rate_data: {
+          type: 'fixed_amount',
+          fixed_amount: { amount: shippingCents, currency: 'usd' },
+          display_name: shippingCents === 0 ? 'Free Shipping' : 'Shipping',
+        },
+      },
+    ],
     success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/checkout/cancel`,
     // The webhook looks the order up by this id and reads its items from

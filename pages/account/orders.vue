@@ -27,6 +27,7 @@ interface Order {
   id: string
   status: 'pending' | 'confirmed' | 'shipped' | 'complete'
   total: number
+  shipping_amount: number
   created_at: string
   shipping_address: Record<string, any> | null
   order_items: OrderItem[]
@@ -43,7 +44,7 @@ const { data: orders, pending } = await useAsyncData<Order[]>(
     const { data, error } = await supabase
       .from('orders')
       .select(`
-        id, status, total, created_at, shipping_address,
+        id, status, total, shipping_amount, created_at, shipping_address,
         order_items (
           id, sanity_product_id, title_snapshot, image_url_snapshot,
           media_type, size, frame_id, quantity, unit_price
@@ -234,6 +235,14 @@ function formatAddress(addr: Record<string, any> | null): string[] {
                   Qty {{ item.quantity }}
                 </p>
               </div>
+            </div>
+
+            <!-- Shipping line -->
+            <div class="flex justify-between pt-3 border-t border-brown/10">
+              <span class="font-ui text-xs tracking-widest uppercase text-brown/50">Shipping</span>
+              <span class="font-body text-sm text-brown/70">
+                {{ order.shipping_amount ? formatPrice(order.shipping_amount) : 'Free' }}
+              </span>
             </div>
           </div>
 

@@ -95,6 +95,16 @@ export const product = defineType({
         !['calendar', 'card', 'gift'].includes((document?.productType as string) ?? ''),
     }),
     defineField({
+      name: 'shippingOverride',
+      title: 'Shipping Override (USD)',
+      type: 'number',
+      description:
+        'Flat shipping cost for this product, regardless of size or destination. ' +
+        'Leave blank to calculate from the Shipping Rates matrix (size band × zone). ' +
+        'Enter 0 for free shipping on this product. Useful for originals (crate/freight).',
+      validation: (r) => r.min(0),
+    }),
+    defineField({
       name: 'simpleDescription',
       title: 'Product Description',
       type: 'text',
