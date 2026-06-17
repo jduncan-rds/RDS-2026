@@ -20,7 +20,7 @@ onMounted(async () => {
   try {
     const stripe = await loadStripe(config.public.stripePublishableKey as string)
     if (!stripe) throw new Error('Stripe failed to load.')
-    embedded = await stripe.initEmbeddedCheckout({
+    embedded = await stripe.createEmbeddedCheckoutPage({
       fetchClientSecret: async () => {
         const { clientSecret } = await $fetch<{ clientSecret: string }>('/api/checkout', {
           method: 'POST',
@@ -31,8 +31,12 @@ onMounted(async () => {
     })
     embedded.mount('#embedded-checkout')
   } catch (err: any) {
+    // Surface the real cause (Stripe.js / API message) to console and screen so
+    // checkout failures are diagnosable instead of a generic message.
+    console.error('[checkout] failed to start embedded checkout:', err)
     error.value =
-      err?.data?.statusMessage ??
+      err?.data?.statusMessage ||
+      err?.message ||
       'Could not start checkout. Please return to your cart and try again.'
   }
 })
