@@ -352,7 +352,8 @@ export default defineEventHandler(async (event) => {
     // Embedded Checkout: the payment form is mounted on our own /checkout page
     // (an iframe served by Stripe) instead of redirecting to a Stripe-hosted
     // page. After payment Stripe redirects the top window to return_url.
-    ui_mode: 'embedded',
+    // NB: newer Stripe API versions renamed this value 'embedded' -> 'embedded_page'.
+    ui_mode: 'embedded_page',
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
