@@ -54,18 +54,11 @@ async function checkout() {
     checkoutError.value = 'Please select your shipping state to see shipping and continue.'
     return
   }
-  isCheckingOut.value = true
   checkoutError.value = null
-  try {
-    const { url } = await $fetch<{ url: string }>('/api/checkout', {
-      method: 'POST',
-      body: { items: cart.items, state: shipState.value },
-    })
-    if (url) await navigateTo(url, { external: true })
-  } catch (err: any) {
-    checkoutError.value = err?.data?.statusMessage ?? 'Something went wrong. Please try again.'
-    isCheckingOut.value = false
-  }
+  isCheckingOut.value = true
+  // The /checkout page mounts the embedded Stripe form and creates the session
+  // (it needs the destination state to price shipping).
+  await navigateTo({ path: '/checkout', query: { state: shipState.value } })
 }
 
 useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })

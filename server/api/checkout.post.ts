@@ -349,6 +349,10 @@ export default defineEventHandler(async (event) => {
   const baseUrl = explicitBase || `${protocol}://${host}`
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    // Embedded Checkout: the payment form is mounted on our own /checkout page
+    // (an iframe served by Stripe) instead of redirecting to a Stripe-hosted
+    // page. After payment Stripe redirects the top window to return_url.
+    ui_mode: 'embedded',
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
@@ -365,8 +369,7 @@ export default defineEventHandler(async (event) => {
         },
       },
     ],
-    success_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${baseUrl}/checkout/cancel`,
+    return_url: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     // The webhook looks the order up by this id and reads its items from
     // Supabase — no need to stuff the full cart into metadata (500-char cap).
     metadata: { orderId: order.id },
@@ -382,5 +385,5 @@ export default defineEventHandler(async (event) => {
 
   const session = await stripe.checkout.sessions.create(sessionParams)
 
-  return { url: session.url }
+  return { clientSecret: session.client_secret }
 })
