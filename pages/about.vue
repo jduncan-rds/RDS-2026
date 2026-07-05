@@ -7,7 +7,14 @@ useSeoMeta({
   description: 'Learn about Western and wildlife artist Robert Duncan — his life, inspiration, and artistic journey.',
 })
 
-const { data: settings } = await useSanityQuery(groq`
+interface SiteSettings {
+  aboutPhoto?: any
+  aboutText?: any
+  contactEmail?: string | null
+  phoneNumber?: string | null
+}
+
+const { data: settings } = await useSanityQuery<SiteSettings>(groq`
   *[_type == "siteSettings"][0]{
     aboutPhoto,
     aboutText,

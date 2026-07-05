@@ -6,7 +6,53 @@ import type { PricingRules } from '~/utils/pricing'
 const route = useRoute()
 const slug = route.params.slug as string
 
-const { data: product } = await useSanityQuery(groq`
+interface ProductVariant {
+  size: string
+  mediaType: string
+  price?: number | null
+  inStock?: boolean
+}
+
+interface ProductQueryResult {
+  _id: string
+  productType: string
+  originalPrice?: number | null
+  originalForSale?: boolean
+  originalUnavailableNote?: string | null
+  simplePrice?: number | null
+  simpleSku?: string | null
+  simpleInStock?: boolean
+  simpleDescription?: string | null
+  productImages?: any[]
+  variants?: ProductVariant[]
+  artwork: {
+    title: string
+    slug: string
+    images?: any[]
+    medium?: string | null
+    dimensions?: string | null
+    year?: number | null
+    description?: any
+    artistNotes?: string | null
+    status?: string
+  }
+}
+
+interface Frame {
+  _id: string
+  name: string
+  barImage?: any
+  thumbnail?: any
+  priceModifier?: number
+  frameRateType?: string
+  ratePerSqInA?: number
+  ratePerSqInB?: number
+  ratePerSqInC?: number
+  ratePerSqIn?: number
+  mouldingInches?: number
+}
+
+const { data: product } = await useSanityQuery<ProductQueryResult>(groq`
   *[_type == "product" && artwork->slug.current == $slug][0] {
     _id,
     productType,
@@ -33,7 +79,7 @@ const { data: product } = await useSanityQuery(groq`
   }
 `, { slug })
 
-const { data: frames } = await useSanityQuery(groq`
+const { data: frames } = await useSanityQuery<Frame[]>(groq`
   *[_type == "frame"] | order(displayOrder asc) {
     _id, name, barImage, thumbnail, priceModifier, frameRateType,
     ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqIn, mouldingInches
@@ -88,6 +134,36 @@ const displayImages = computed(() => [
 ])
 const activeImageIndex = ref(0)
 const activeImage = computed(() => displayImages.value[activeImageIndex.value] ?? null)
+
+const lightboxOpen = ref(false)
+const lightboxImageUrl = computed(() => {
+  if (!activeImage.value) return null
+  return useSanityImageUrl(activeImage.value).width(1400).fit('max').auto('format').url()
+})
+
+function openFullImage() {
+  if (!activeImage.value) return
+  lightboxOpen.value = true
+}
+
+function onLightboxKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') lightboxOpen.value = false
+}
+
+watch(lightboxOpen, (open) => {
+  if (import.meta.client) {
+    document.body.classList.toggle('overflow-hidden', open)
+    if (open) window.addEventListener('keydown', onLightboxKeydown)
+    else window.removeEventListener('keydown', onLightboxKeydown)
+  }
+})
+
+onUnmounted(() => {
+  if (import.meta.client) {
+    document.body.classList.remove('overflow-hidden')
+    window.removeEventListener('keydown', onLightboxKeydown)
+  }
+})
 
 // Product options
 const mediaTypes = [
@@ -226,14 +302,21 @@ useSeoMeta({
       <!-- Image gallery -->
       <div class="lg:sticky lg:top-28">
         <ArtworkFrame :frame="selectedFrame" :frame-width="frameWidth">
-          <SanityImage
+          <button
             v-if="activeImage"
-            :image="activeImage"
-            :alt="artwork?.title ?? ''"
-            :width="1200"
-            fit="max"
-            class="block w-full h-auto"
-          />
+            type="button"
+            class="block w-full cursor-zoom-in"
+            title="View full-size image"
+            @click="openFullImage"
+          >
+            <SanityImage
+              :image="activeImage"
+              :alt="artwork?.title ?? ''"
+              :width="1200"
+              fit="max"
+              class="block w-full h-auto"
+            />
+          </button>
           <div v-else class="w-full aspect-[4/5] bg-brown/10" />
         </ArtworkFrame>
 
@@ -253,6 +336,29 @@ useSeoMeta({
           </button>
         </div>
       </div>
+
+      <Teleport to="body">
+        <div
+          v-if="lightboxOpen"
+          class="fixed inset-0 z-50 flex items-center justify-center bg-brown/90 p-6 sm:p-12"
+          @click="lightboxOpen = false"
+        >
+          <button
+            type="button"
+            class="absolute top-5 right-5 sm:top-8 sm:right-8 text-cream/80 hover:text-cream transition-colors font-ui text-xs tracking-widest uppercase"
+            @click="lightboxOpen = false"
+          >
+            Close ✕
+          </button>
+          <img
+            v-if="lightboxImageUrl"
+            :src="lightboxImageUrl"
+            :alt="artwork?.title ?? ''"
+            class="max-w-full max-h-full object-contain"
+            @click.stop
+          >
+        </div>
+      </Teleport>
 
       <!-- Product details -->
       <div>

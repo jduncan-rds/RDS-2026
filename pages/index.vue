@@ -6,7 +6,27 @@ useSeoMeta({
   description: 'Original oil paintings and fine art prints by Western and wildlife artist Robert Duncan.',
 })
 
-const { data: homepage } = await useSanityQuery(groq`
+interface HomepageSettings {
+  heroImages?: any[]
+  heroHeadline?: string | null
+  heroHeadlineSize?: string | null
+  heroQuote?: string | null
+  heroQuoteAttribution?: string | null
+  heroQuoteFont?: string | null
+  heroQuoteSize?: string | null
+  heroQuoteBackground?: string | null
+  featuredProducts?: {
+    _id: string
+    productType: string
+    title: string
+    slug: string
+    image?: any
+    isNew?: boolean
+    status?: string
+  }[]
+}
+
+const { data: homepage } = await useSanityQuery<HomepageSettings>(groq`
   *[_type == "homepageSettings"][0]{
     heroImages,
     heroHeadline,
