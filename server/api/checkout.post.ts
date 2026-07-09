@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
       ? sanity.fetch<any[]>(
           `*[_type == "frame" && _id in $ids] {
             _id, priceModifier, frameRateType,
-            ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqIn
+            ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqInD, ratePerSqIn
           }`,
           { ids: frameIds },
         )
@@ -263,6 +263,7 @@ export default defineEventHandler(async (event) => {
       productId: r.sanity_product_id,
       size: r.size,
       mediaType: r.media_type,
+      frameId: r.frame_id,
       quantity: r.quantity,
       unitPriceDollars: r.unit_price / 100,
     })),

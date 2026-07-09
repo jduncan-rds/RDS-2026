@@ -78,7 +78,17 @@ export const frame = defineType({
       name: 'ratePerSqInC',
       title: 'Band C (Large) — Rate per sq inch (USD)',
       type: 'number',
-      description: 'Per-sq-inch rate for large prints. Typically lowest.',
+      description: 'Per-sq-inch rate for large prints.',
+      hidden: ({ document }) => document?.frameRateType !== 'per_sq_in',
+      validation: (r) => r.min(0),
+    }),
+    defineField({
+      name: 'ratePerSqInD',
+      title: 'Band D (Extra Large) — Rate per sq inch (USD)',
+      type: 'number',
+      description:
+        'Per-sq-inch rate for extra-large prints. Typically lowest. Only used if ' +
+        'Band D is enabled in Pricing Rules.',
       hidden: ({ document }) => document?.frameRateType !== 'per_sq_in',
       validation: (r) => r.min(0),
     }),

@@ -1,7 +1,7 @@
 import { defineField, defineType } from 'sanity'
 
 /**
- * Per-size-band pricing rates. Reused three times in pricingRules (bands A/B/C).
+ * Per-size-band pricing rates. Reused four times in pricingRules (bands A/B/C/D).
  * Each band holds a per-square-inch rate for every print media type, so larger
  * prints can carry a lower per-sq-in rate than small ones. No minimum-price
  * floors — price is purely area × rate (then rounded up to the dollar).

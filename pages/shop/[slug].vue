@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import groq from 'groq'
-import { computeVariantPrice, computeFrameModifier, computePrintTotal, sqIn, parseSize } from '~/utils/pricing'
+import { computeVariantPrice, computeFrameModifier, computePrintTotal, sqIn, parseSize, formatUsd } from '~/utils/pricing'
 import type { PricingRules } from '~/utils/pricing'
 
 const route = useRoute()
@@ -48,6 +48,7 @@ interface Frame {
   ratePerSqInA?: number
   ratePerSqInB?: number
   ratePerSqInC?: number
+  ratePerSqInD?: number
   ratePerSqIn?: number
   mouldingInches?: number
 }
@@ -82,7 +83,7 @@ const { data: product } = await useSanityQuery<ProductQueryResult>(groq`
 const { data: frames } = await useSanityQuery<Frame[]>(groq`
   *[_type == "frame"] | order(displayOrder asc) {
     _id, name, barImage, thumbnail, priceModifier, frameRateType,
-    ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqIn, mouldingInches
+    ratePerSqInA, ratePerSqInB, ratePerSqInC, ratePerSqInD, ratePerSqIn, mouldingInches
   }
 `)
 
@@ -387,7 +388,7 @@ useSeoMeta({
         <!-- Original: simple price + buy -->
         <template v-if="isOriginal">
           <p class="font-heading text-3xl text-brown mb-8">
-            ${{ product?.originalPrice?.toLocaleString() }}
+            ${{ product?.originalPrice != null ? formatUsd(product.originalPrice) : '' }}
           </p>
           <div v-if="originalBuyable">
             <AppButton variant="primary" size="lg" class="w-full sm:w-auto" @click="addToCart">
@@ -413,7 +414,7 @@ useSeoMeta({
             {{ simpleTypeLabel }}
           </p>
           <p class="font-heading text-3xl text-brown mb-6">
-            ${{ product?.simplePrice?.toLocaleString() }}
+            ${{ product?.simplePrice != null ? formatUsd(product.simplePrice) : '' }}
           </p>
 
           <p v-if="product?.simpleDescription" class="font-body text-brown/70 leading-relaxed mb-8">
@@ -448,7 +449,7 @@ useSeoMeta({
               <div class="flex items-baseline justify-between mb-6">
                 <p class="font-ui text-xs tracking-widest uppercase text-brown/50">Total</p>
                 <p class="font-heading text-3xl text-brown">
-                  ${{ ((product?.simplePrice ?? 0) * quantity).toLocaleString() }}
+                  ${{ formatUsd((product?.simplePrice ?? 0) * quantity) }}
                 </p>
               </div>
               <AppButton
@@ -557,7 +558,7 @@ useSeoMeta({
             <div class="flex items-baseline justify-between mb-6">
               <p class="font-ui text-xs tracking-widest uppercase text-brown/50">Total</p>
               <p class="font-heading text-3xl text-brown">
-                {{ displayPrice ? `$${(displayPrice * quantity).toLocaleString()}` : '—' }}
+                {{ displayPrice ? `$${formatUsd(displayPrice * quantity)}` : '—' }}
               </p>
             </div>
             <AppButton

@@ -2,6 +2,7 @@ import type { SanityClient } from '@sanity/client'
 import {
   computeOrderShippingDollars,
   stateToZone,
+  type ShippingClass,
   type ShippingLineInput,
   type ShippingRates,
   type ShippingZone,
@@ -12,9 +13,12 @@ export interface ShippingQuoteLine {
   productId: string
   size: string | null
   mediaType: string
+  frameId: string | null
   quantity: number
   unitPriceDollars: number
 }
+
+const FRAMEABLE_MEDIA_TYPES = new Set(['open_edition', 'pod_paper', 'pod_canvas'])
 
 /**
  * Authoritative shipping cost (in cents) for an order to a given US state.
@@ -45,12 +49,18 @@ export async function computeShippingCents(
 
   const shippingLines: ShippingLineInput[] = lines.map((l) => {
     const p = byId[l.productId]
+    const shippingClass: ShippingClass = !FRAMEABLE_MEDIA_TYPES.has(l.mediaType)
+      ? 'other'
+      : l.frameId
+        ? 'framed_print'
+        : 'unframed_print'
     return {
       size: l.size,
       quantity: l.quantity,
       unitPriceDollars: l.unitPriceDollars,
       shippingOverrideDollars: p?.shippingOverride ?? null,
       fallbackSize: l.mediaType === 'original' ? (p?.dims ?? null) : null,
+      shippingClass,
     }
   })
 

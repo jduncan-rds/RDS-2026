@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { formatUsd } from '~/utils/pricing'
+
 defineProps<{
   frames: any[]
   selectedId: string | null
@@ -40,7 +42,7 @@ defineEmits<{ select: [id: string | null] }>()
             ? 'border-brown ring-1 ring-brown'
             : 'border-brown/20 hover:border-brown/50',
         ]"
-        :title="`${frame.name}${frame.priceModifier > 0 ? ` (+$${frame.priceModifier})` : ''}`"
+        :title="`${frame.name}${frame.priceModifier > 0 ? ` (+$${formatUsd(frame.priceModifier)})` : ''}`"
         @click="$emit('select', frame._id)"
       >
         <SanityImage
@@ -58,7 +60,7 @@ defineEmits<{ select: [id: string | null] }>()
     <p v-if="selectedId" class="mt-2 font-ui text-xs text-brown/50">
       {{ frames.find(f => f._id === selectedId)?.name }}
       <span v-if="(frames.find(f => f._id === selectedId)?.priceModifier ?? 0) > 0">
-        · +${{ frames.find(f => f._id === selectedId)?.priceModifier }}
+        · +${{ formatUsd(frames.find(f => f._id === selectedId)?.priceModifier ?? 0) }}
       </span>
     </p>
     <p v-else class="mt-2 font-ui text-xs text-brown/50">Unframed</p>

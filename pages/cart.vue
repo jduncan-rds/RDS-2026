@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { US_STATES } from '~/utils/shipping'
+import { formatUsd } from '~/utils/pricing'
 
 const cart = useCartStore()
 
@@ -138,10 +139,10 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
           <!-- Line total -->
           <div class="shrink-0 text-right">
             <p class="font-heading text-xl text-brown">
-              ${{ (item.unitPrice * item.quantity).toLocaleString() }}
+              ${{ formatUsd(item.unitPrice * item.quantity) }}
             </p>
             <p v-if="item.quantity > 1" class="font-ui text-xs text-brown/40 mt-1">
-              ${{ item.unitPrice.toLocaleString() }} ea.
+              ${{ formatUsd(item.unitPrice) }} ea.
             </p>
           </div>
         </div>
@@ -153,7 +154,7 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
 
         <div class="flex justify-between mb-2">
           <span class="font-body text-brown/70">Subtotal</span>
-          <span class="font-heading text-xl text-brown">${{ cart.total.toLocaleString() }}</span>
+          <span class="font-heading text-xl text-brown">${{ formatUsd(cart.total) }}</span>
         </div>
 
         <!-- Shipping destination -->
@@ -176,7 +177,7 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
             <template v-if="!shipState">—</template>
             <template v-else-if="shippingLoading">…</template>
             <template v-else-if="shippingDollars === 0">Free</template>
-            <template v-else-if="shippingDollars != null">${{ shippingDollars.toLocaleString() }}</template>
+            <template v-else-if="shippingDollars != null">${{ formatUsd(shippingDollars) }}</template>
             <template v-else>—</template>
           </span>
         </div>
@@ -184,7 +185,7 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
         <div class="flex justify-between items-baseline mt-4 pt-4 border-t border-brown/10 mb-2">
           <span class="font-body text-brown">Total</span>
           <span class="font-heading text-2xl text-brown">
-            ${{ (shipState && shippingDollars != null ? grandTotal : cart.total).toLocaleString() }}
+            ${{ formatUsd(shipState && shippingDollars != null ? grandTotal : cart.total) }}
           </span>
         </div>
         <p v-if="!shipState" class="font-ui text-xs text-brown/40 mb-8">

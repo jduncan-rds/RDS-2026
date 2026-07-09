@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import groq from 'groq'
-import { computeVariantPrice } from '~/utils/pricing'
+import { computeVariantPrice, formatUsd } from '~/utils/pricing'
 import type { PricingRules, PrintMediaType } from '~/utils/pricing'
 
 useSeoMeta({
@@ -257,7 +257,7 @@ function startingPrice(product: any): number | null {
             :to="`/shop/${product.artwork?.slug}`"
           />
           <p v-if="startingPrice(product)" class="font-ui text-xs text-brown/50 mt-1">
-            From ${{ startingPrice(product) }}
+            From ${{ formatUsd(startingPrice(product)!) }}
           </p>
         </div>
       </div>

@@ -23,6 +23,7 @@ export default defineEventHandler(async (event) => {
     productId: i.productId,
     size: i.size ?? null,
     mediaType: i.mediaType,
+    frameId: i.frameId ?? null,
     quantity: Number(i.quantity) || 1,
     unitPriceDollars: Number(i.unitPrice) || 0,
   }))

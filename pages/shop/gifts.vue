@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import groq from 'groq'
+import { formatUsd } from '~/utils/pricing'
 
 useSeoMeta({
   title: 'Calendars & Gifts — Robert Duncan Fine Art',
@@ -102,7 +103,7 @@ const typeLabel: Record<string, string> = {
               {{ typeLabel[product.productType] ?? product.productType }}
             </p>
             <p v-if="product.simplePrice" class="font-ui text-xs text-brown/50">
-              ${{ product.simplePrice }}
+              ${{ formatUsd(product.simplePrice) }}
             </p>
           </div>
         </div>

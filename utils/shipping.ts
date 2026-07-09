@@ -10,11 +10,27 @@ export interface ShippingZoneRow {
 
 export interface ShippingRates {
   bandA?: ShippingZoneRow
+  bandAUnframed?: ShippingZoneRow
   bandB?: ShippingZoneRow
+  bandBUnframed?: ShippingZoneRow
   bandC?: ShippingZoneRow
+  bandCUnframed?: ShippingZoneRow
+  bandD?: ShippingZoneRow
+  bandDUnframed?: ShippingZoneRow
   perAdditionalItem?: number
   freeShippingThreshold?: number
 }
+
+/**
+ * Classifies a cart line for shipping purposes:
+ *  - 'framed_print': a print/canvas with a frame. Uses the band's default row;
+ *    every unit's cost is summed into the order total (no per-additional fee).
+ *  - 'unframed_print': a print/canvas with no frame. Uses the band's Unframed
+ *    row; grouped with 'other' for highest-item + per-additional-item.
+ *  - 'other' (default): originals and calendars/cards/gifts. Uses the band's
+ *    default row; grouped with 'unframed_print' for highest-item + per-additional-item.
+ */
+export type ShippingClass = 'framed_print' | 'unframed_print' | 'other'
 
 /** One cart line as far as shipping cares. Dollars, not cents. */
 export interface ShippingLineInput {
@@ -26,6 +42,7 @@ export interface ShippingLineInput {
   // For items without a variant size (originals): the artwork's dimensions
   // string, used to pick a size band. Simple goods have neither → Band A.
   fallbackSize?: string | null
+  shippingClass?: ShippingClass
 }
 
 /** US states + DC for the checkout dropdown. */
@@ -96,14 +113,38 @@ function perUnitShipping(
   const area = sizeStr ? sqIn(sizeStr) : null
   // No usable size → smallest band.
   const key = area != null ? selectBandKey(rules, area) : 'A'
-  const row = (key === 'A' ? rates.bandA : key === 'B' ? rates.bandB : rates.bandC) ?? {}
-  return zoneCost(row, zone)
+  // Band D falls back to Band C's row until a dedicated Band D row is set,
+  // so shipping keeps working unchanged through the pricing rollout. Same
+  // fallback for Unframed: an empty Unframed row reuses the band's default row.
+  const framedRow =
+    (key === 'A'
+      ? rates.bandA
+      : key === 'B'
+        ? rates.bandB
+        : key === 'C'
+          ? rates.bandC
+          : rates.bandD ?? rates.bandC) ?? {}
+  if (line.shippingClass !== 'unframed_print') return zoneCost(framedRow, zone)
+
+  const unframedRow =
+    key === 'A'
+      ? rates.bandAUnframed
+      : key === 'B'
+        ? rates.bandBUnframed
+        : key === 'C'
+          ? rates.bandCUnframed
+          : rates.bandDUnframed ?? rates.bandCUnframed
+  return zoneCost(unframedRow ?? framedRow, zone)
 }
 
 /**
- * Total order shipping in dollars: the single highest item's shipping, plus the
- * per-additional-item fee for every other unit. Free when the merchandise
- * subtotal meets the free-shipping threshold.
+ * Total order shipping in dollars. Free when the merchandise subtotal meets the
+ * free-shipping threshold. Otherwise splits the order into two groups (see
+ * ShippingClass) and adds their totals:
+ *  - Framed prints/canvas: every unit's own shipping cost is summed.
+ *  - Everything else (unframed prints/canvas, originals, simple goods): the
+ *    single highest-shipping item in the group, plus the per-additional-item
+ *    fee for every other unit in the group.
  */
 export function computeOrderShippingDollars(
   lines: ShippingLineInput[],
@@ -117,16 +158,24 @@ export function computeOrderShippingDollars(
   const threshold = rates.freeShippingThreshold
   if (threshold && threshold > 0 && subtotal >= threshold) return 0
 
-  // Expand each line by quantity so the per-additional-item fee counts units.
-  const perUnitCosts: number[] = []
+  // Expand each line by quantity, bucketed by shipping group.
+  const framedCosts: number[] = []
+  const otherCosts: number[] = []
   for (const line of lines) {
     const cost = perUnitShipping(line, rates, rules, zone)
-    for (let i = 0; i < line.quantity; i++) perUnitCosts.push(cost)
+    const bucket = line.shippingClass === 'framed_print' ? framedCosts : otherCosts
+    for (let i = 0; i < line.quantity; i++) bucket.push(cost)
   }
-  if (!perUnitCosts.length) return 0
 
-  const highest = Math.max(...perUnitCosts)
-  const extraUnits = perUnitCosts.length - 1
-  const perExtra = rates.perAdditionalItem ?? 0
-  return highest + extraUnits * perExtra
+  const framedTotal = framedCosts.reduce((sum, cost) => sum + cost, 0)
+
+  let otherTotal = 0
+  if (otherCosts.length) {
+    const highest = Math.max(...otherCosts)
+    const extraUnits = otherCosts.length - 1
+    const perExtra = rates.perAdditionalItem ?? 0
+    otherTotal = highest + extraUnits * perExtra
+  }
+
+  return framedTotal + otherTotal
 }

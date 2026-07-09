@@ -6,12 +6,16 @@ export interface BandRates {
 
 export interface PricingRules {
   // Size-band thresholds (square inches). A: area ≤ bandAMaxSqIn,
-  // B: ≤ bandBMaxSqIn, C: everything larger.
+  // B: ≤ bandBMaxSqIn, C: ≤ bandCMaxSqIn, D: everything larger.
+  // Band D only takes effect once both bandCMaxSqIn and bandD are set —
+  // until then everything above Band B stays in Band C, unchanged.
   bandAMaxSqIn?: number
   bandBMaxSqIn?: number
+  bandCMaxSqIn?: number
   bandA?: BandRates
   bandB?: BandRates
   bandC?: BandRates
+  bandD?: BandRates
   roundTo: number
 
   // --- Legacy (pre-band) single-rate fields. Kept optional so pricing keeps
@@ -28,11 +32,12 @@ export interface FramePricingData {
   ratePerSqInA?: number
   ratePerSqInB?: number
   ratePerSqInC?: number
+  ratePerSqInD?: number
   // Legacy single per-sq-in rate (fallback during/after rollout).
   ratePerSqIn?: number
 }
 
-export type BandKey = 'A' | 'B' | 'C'
+export type BandKey = 'A' | 'B' | 'C' | 'D'
 export type PrintMediaType = 'open_edition' | 'pod_paper' | 'pod_canvas'
 
 export function parseSize(size: string): { w: number; h: number } | null {
@@ -67,13 +72,17 @@ function roundToNearest(value: number, nearest: number): number {
 
 /**
  * Which size band an area falls into, given the rules' thresholds.
- * Defaults to 250 / 500 if thresholds are missing.
+ * Defaults to 250 / 500 if thresholds are missing. Band D only kicks in once
+ * bandCMaxSqIn and bandD rates are both configured — until then everything
+ * above Band B stays in Band C (unbounded), matching pre-Band-D behavior.
  */
 export function selectBandKey(rules: PricingRules, area: number): BandKey {
   const aMax = rules.bandAMaxSqIn ?? 250
   const bMax = rules.bandBMaxSqIn ?? 500
   if (area <= aMax) return 'A'
   if (area <= bMax) return 'B'
+  const bandDReady = rules.bandCMaxSqIn != null && !!rules.bandD
+  if (bandDReady && area > (rules.bandCMaxSqIn as number)) return 'D'
   return 'C'
 }
 
@@ -92,7 +101,9 @@ function resolveBandRates(rules: PricingRules, area: number): BandRates {
     }
   }
   const key = selectBandKey(rules, area)
-  return (key === 'A' ? rules.bandA : key === 'B' ? rules.bandB : rules.bandC) ?? {}
+  const band =
+    key === 'A' ? rules.bandA : key === 'B' ? rules.bandB : key === 'C' ? rules.bandC : rules.bandD
+  return band ?? {}
 }
 
 export function computeVariantPrice(
@@ -133,6 +144,12 @@ export function computePrintTotal(base: number, frameModifier: number): number {
   return Math.ceil(base + frameModifier)
 }
 
+// Formats a dollar amount (no leading $) as e.g. "1,234.00" so prices always
+// show two decimal places instead of dropping ".00".
+export function formatUsd(amount: number): string {
+  return amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function computeFrameModifier(
   frame: FramePricingData | null,
   size: string | null,
@@ -149,7 +166,13 @@ export function computeFrameModifier(
       if (rules) {
         const key = selectBandKey(rules, area)
         const banded =
-          key === 'A' ? frame.ratePerSqInA : key === 'B' ? frame.ratePerSqInB : frame.ratePerSqInC
+          key === 'A'
+            ? frame.ratePerSqInA
+            : key === 'B'
+              ? frame.ratePerSqInB
+              : key === 'C'
+                ? frame.ratePerSqInC
+                : frame.ratePerSqInD
         if (banded && banded > 0) rate = banded
       }
       if (rate && rate > 0) return area * rate
