@@ -28,6 +28,7 @@ interface Order {
   status: 'pending' | 'confirmed' | 'shipped' | 'complete'
   total: number
   shipping_amount: number
+  tax_amount: number
   created_at: string
   shipping_address: Record<string, any> | null
   order_items: OrderItem[]
@@ -44,7 +45,7 @@ const { data: orders, pending } = await useAsyncData<Order[]>(
     const { data, error } = await supabase
       .from('orders')
       .select(`
-        id, status, total, shipping_amount, created_at, shipping_address,
+        id, status, total, shipping_amount, tax_amount, created_at, shipping_address,
         order_items (
           id, sanity_product_id, title_snapshot, image_url_snapshot,
           media_type, size, frame_id, quantity, unit_price
@@ -243,6 +244,11 @@ function formatAddress(addr: Record<string, any> | null): string[] {
               <span class="font-body text-sm text-brown/70">
                 {{ order.shipping_amount ? formatPrice(order.shipping_amount) : 'Free' }}
               </span>
+            </div>
+            <!-- Tax line — only shown for orders that actually had tax collected -->
+            <div v-if="order.tax_amount" class="flex justify-between">
+              <span class="font-ui text-xs tracking-widest uppercase text-brown/50">Tax</span>
+              <span class="font-body text-sm text-brown/70">{{ formatPrice(order.tax_amount) }}</span>
             </div>
           </div>
 

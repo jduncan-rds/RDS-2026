@@ -44,6 +44,10 @@ export default defineNuxtConfig({
     supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
     stripeSecretKey: process.env.STRIPE_SECRET_KEY,
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    // Off by default — Stripe rejects session creation with automatic_tax
+    // enabled unless Stripe Tax is turned on (and nexus registered) in the
+    // Dashboard first. Flip to 'true' only after that's done.
+    stripeAutomaticTax: process.env.STRIPE_AUTOMATIC_TAX,
     shipstationApiKey: process.env.SHIPSTATION_API_KEY,
     shipstationApiSecret: process.env.SHIPSTATION_API_SECRET,
     ordersNotifyEmail: process.env.ORDERS_NOTIFY_EMAIL,

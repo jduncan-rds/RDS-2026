@@ -91,7 +91,10 @@ async function handleCheckoutCompleted(
       : (session.payment_intent?.id ?? null)
 
   // Confirm the order. Scoped to status='pending' so a retry can't downgrade
-  // an already-shipped order.
+  // an already-shipped order. total/tax_amount are overwritten from Stripe's
+  // own totals (rather than trusting the pre-tax figure computed at session
+  // creation) so the stored total is always what was actually charged —
+  // matters once Stripe Tax is enabled and adds tax on top.
   const { error: updateError } = await supabase
     .from('orders')
     .update({
@@ -99,6 +102,8 @@ async function handleCheckoutCompleted(
       stripe_payment_intent_id: paymentIntentId,
       guest_email: shipping.email,
       shipping_address: shippingDetails ?? session.customer_details ?? null,
+      total: session.amount_total ?? undefined,
+      tax_amount: session.total_details?.amount_tax ?? 0,
     })
     .eq('id', orderId)
     .eq('status', 'pending')

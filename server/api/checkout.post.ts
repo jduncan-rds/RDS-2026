@@ -235,6 +235,10 @@ export default defineEventHandler(async (event) => {
           images: item.imageUrl ? [item.imageUrl] : [],
         },
         unit_amount: unitAmountCents,
+        // Our prices are pre-tax; Stripe Tax (once enabled) adds tax on top
+        // rather than backing it out of this amount. Harmless no-op until
+        // automatic_tax is turned on below.
+        tax_behavior: 'exclusive',
       },
       quantity: item.quantity,
     })
@@ -368,6 +372,11 @@ export default defineEventHandler(async (event) => {
           type: 'fixed_amount',
           fixed_amount: { amount: shippingCents, currency: 'usd' },
           display_name: shippingCents === 0 ? 'Free Shipping' : 'Shipping',
+          // Same rationale as the line items' tax_behavior above. tax_code is
+          // Stripe's generic "Shipping" category — confirm it's still correct
+          // for your Stripe Tax setup before relying on it.
+          tax_behavior: 'exclusive',
+          tax_code: 'txcd_92010001',
         },
       },
     ],
@@ -375,6 +384,13 @@ export default defineEventHandler(async (event) => {
     // The webhook looks the order up by this id and reads its items from
     // Supabase — no need to stuff the full cart into metadata (500-char cap).
     metadata: { orderId: order.id },
+  }
+
+  // Stripe rejects session creation with automatic_tax enabled unless Stripe
+  // Tax is turned on (and nexus registered) in the Dashboard first — so this
+  // stays off until STRIPE_AUTOMATIC_TAX=true is set, post-Dashboard setup.
+  if (config.stripeAutomaticTax === 'true') {
+    sessionParams.automatic_tax = { enabled: true }
   }
 
   if (stripeCustomerId) {
