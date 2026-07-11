@@ -181,24 +181,26 @@ function startingPrice(product: any): number | null {
               ✕
             </button>
           </div>
-          <button
-            type="button"
-            :class="[
-              'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200 whitespace-nowrap',
-              showOpenEditionOnly ? 'bg-rust text-cream border-rust' : 'bg-transparent text-brown border-brown/40 hover:border-brown',
-            ]"
-            @click="showOpenEditionOnly = !showOpenEditionOnly"
-          >
-            Open Edition Prints
-          </button>
-          <button
-            v-if="hasActiveFilters"
-            type="button"
-            class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors ml-auto whitespace-nowrap"
-            @click="clearAllFilters"
-          >
-            Clear all
-          </button>
+          <div class="flex items-center gap-3 ml-auto">
+            <button
+              v-if="hasActiveFilters"
+              type="button"
+              class="font-ui text-xs tracking-widest uppercase text-brown/40 hover:text-brown transition-colors whitespace-nowrap"
+              @click="clearAllFilters"
+            >
+              Clear all
+            </button>
+            <button
+              type="button"
+              :class="[
+                'font-ui text-xs tracking-widest uppercase px-4 py-2 border transition-colors duration-200 whitespace-nowrap',
+                showOpenEditionOnly ? 'bg-rust text-cream border-rust' : 'bg-transparent text-brown border-brown/40 hover:border-brown',
+              ]"
+              @click="showOpenEditionOnly = !showOpenEditionOnly"
+            >
+              Open Edition Prints
+            </button>
+          </div>
         </div>
 
         <!-- Row 2: Category pills + New Work -->

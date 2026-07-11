@@ -49,7 +49,10 @@ useSeoMeta({ title: 'Checkout — Robert Duncan Fine Art' })
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-6 py-12 lg:py-16">
+  <div class="max-w-6xl mx-auto px-6 py-12 lg:py-16">
+    <!-- Stripe's Embedded Checkout is responsive and renders a two-column
+    layout (order summary + payment form) once its container is wide enough —
+    this needs to not be capped too narrow for that to kick in on desktop. -->
     <div class="flex items-baseline justify-between mb-8">
       <h1 class="font-heading text-3xl text-brown">Checkout</h1>
       <NuxtLink
