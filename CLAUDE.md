@@ -74,4 +74,14 @@ Server secrets and public keys are wired through `runtimeConfig` in `nuxt.config
 
 ## Conventions
 
-End commit messages with the Co-Authored-By trailer. Commit/push only when asked. Money is always handled in dollars in the pricing module and converted to integer cents at the Stripe boundary.
+End commit messages with the Co-Authored-By trailer. Money is always handled in dollars in the pricing module and converted to integer cents at the Stripe boundary.
+
+## When to ask before acting
+
+Don't ask for permission on local, reversible work in this repo — just do it: editing/writing files, running the dev server or local scripts, installing npm packages, running migration/import scripts against test-mode Stripe or dev data, reading files/env vars.
+
+Do ask first (or at least flag it and pause) for anything that either (a) touches a live deployed surface, (b) sends data outside this machine, or (c) is a git commit/push — concretely, for this project:
+- `git add`/`git commit` and `git push` to `main` — always ask first, even though a commit alone is local (the user wants a chance to review before it's part of history)
+- `npx sanity deploy` (updates the live hosted Studio at `robert-duncan-fine-art.sanity.studio`)
+- Sending real email (Resend), calling ShipStation, or anything using live-mode (non-test) Stripe credentials
+- Any other action that publishes, uploads, or transmits data to a third-party service, or otherwise affects something outside this local checkout
