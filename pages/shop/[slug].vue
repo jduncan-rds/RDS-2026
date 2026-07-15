@@ -32,7 +32,6 @@ interface ProductQueryResult {
     medium?: string | null
     dimensions?: string | null
     year?: number | null
-    description?: any
     artistNotes?: string | null
     status?: string
   }
@@ -73,7 +72,6 @@ const { data: product } = await useSanityQuery<ProductQueryResult>(groq`
       medium,
       dimensions,
       year,
-      description,
       artistNotes,
       status
     }
@@ -336,6 +334,12 @@ useSeoMeta({
             <SanityImage :image="img" :alt="`View ${i + 1}`" :width="120" fit="crop" aspect-ratio="1/1" class="w-full h-full object-cover" />
           </button>
         </div>
+
+        <!-- Artist notes -->
+        <div v-if="artwork?.artistNotes" class="mt-8 p-6 bg-brown/5">
+          <p class="font-ui text-xs tracking-widest uppercase text-brown/40 mb-2">Artist Notes</p>
+          <p class="font-body text-brown/70 italic leading-relaxed">{{ artwork.artistNotes }}</p>
+        </div>
       </div>
 
       <Teleport to="body">
@@ -575,20 +579,6 @@ useSeoMeta({
             </p>
           </div>
         </template>
-
-        <!-- Description -->
-        <div v-if="artwork?.description" class="mt-12 pt-12 border-t border-brown/10">
-          <h2 class="font-heading text-2xl text-brown mb-4">About this piece</h2>
-          <div class="font-body text-brown/70 leading-relaxed space-y-3">
-            <SanityContent :blocks="artwork.description" />
-          </div>
-        </div>
-
-        <!-- Artist notes -->
-        <div v-if="artwork?.artistNotes" class="mt-8 p-6 bg-brown/5">
-          <p class="font-ui text-xs tracking-widest uppercase text-brown/40 mb-2">Artist Notes</p>
-          <p class="font-body text-brown/70 italic leading-relaxed">{{ artwork.artistNotes }}</p>
-        </div>
       </div>
     </div>
   </div>
