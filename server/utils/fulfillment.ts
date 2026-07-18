@@ -20,6 +20,7 @@ export interface OrderItemRow {
   media_type: 'original' | 'open_edition' | 'pod_paper' | 'pod_canvas' | 'simple'
   size: string | null
   frame_id: string | null
+  frame_name_snapshot: string | null
   quantity: number
   unit_price: number // cents
   sku_snapshot: string | null
@@ -100,10 +101,18 @@ export async function notifyOriginalPurchase(
  * are absent, log the payload that *would* have been sent so the order can be
  * placed manually and nothing is lost.
  */
+export interface OrderAmounts {
+  // All in cents, mirroring Stripe's own units.
+  shippingCents: number
+  taxCents: number
+  amountPaidCents: number
+}
+
 export async function sendFulfillableOrderToShipStation(
   orderId: string,
   fulfillItems: OrderItemRow[],
   shipping: ShippingInfo,
+  amounts: OrderAmounts,
 ): Promise<void> {
   if (fulfillItems.length === 0) return
 
@@ -115,6 +124,12 @@ export async function sendFulfillableOrderToShipStation(
     orderNumber: orderId,
     orderDate: new Date().toISOString(),
     orderStatus: 'awaiting_shipment',
+    // Order-level totals, not per-item — same across the whole order even if
+    // it also included an original (which doesn't ship via ShipStation), so
+    // this can overstate shipping/tax slightly for a mixed original+print cart.
+    amountPaid: Number(dollars(amounts.amountPaidCents)),
+    taxAmount: Number(dollars(amounts.taxCents)),
+    shippingAmount: Number(dollars(amounts.shippingCents)),
     billTo: { name: shipping.name ?? null },
     shipTo: {
       name: shipping.name ?? null,
@@ -131,7 +146,13 @@ export async function sendFulfillableOrderToShipStation(
       sku:
         i.sku_snapshot ??
         [i.sanity_product_id, i.media_type, i.size, i.frame_id].filter(Boolean).join('|'),
-      name: [i.title_snapshot, i.size].filter(Boolean).join(' · '),
+      name: [
+        i.title_snapshot,
+        i.size,
+        i.frame_name_snapshot ? `Frame: ${i.frame_name_snapshot}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       quantity: i.quantity,
       unitPrice: Number(dollars(i.unit_price)),
     })),
@@ -163,4 +184,80 @@ export async function sendFulfillableOrderToShipStation(
   }
 
   console.log('[fulfillment:shipstation] order created', { orderId })
+}
+
+const MEDIA_TYPE_LABEL: Record<OrderItemRow['media_type'], string> = {
+  original: 'Original Painting',
+  open_edition: 'Open Edition Print',
+  pod_paper: 'Custom Print',
+  pod_canvas: 'Custom Canvas',
+  simple: '',
+}
+
+/**
+ * Emails the customer an itemized order confirmation covering every item in
+ * the order, regardless of type. Best-effort, same as the other handlers
+ * here — a failure is logged, never thrown, so it can't undo the order
+ * confirmation or block fulfillment.
+ */
+export async function sendOrderConfirmationEmail(
+  orderId: string,
+  items: OrderItemRow[],
+  shipping: ShippingInfo,
+  amounts: OrderAmounts,
+): Promise<void> {
+  if (!shipping.email) {
+    console.warn('[email:order-confirmation] no customer email on order, skipping', { orderId })
+    return
+  }
+
+  const config = useRuntimeConfig()
+
+  const itemLines = items.map((i) => {
+    const detail = [MEDIA_TYPE_LABEL[i.media_type] || null, i.size, i.frame_name_snapshot ? `Frame: ${i.frame_name_snapshot}` : null]
+      .filter(Boolean)
+      .join(' · ')
+    const qtyPrefix = i.quantity > 1 ? `${i.quantity} × ` : ''
+    return `${qtyPrefix}${i.title_snapshot}${detail ? ` (${detail})` : ''} — $${dollars(i.unit_price * i.quantity)}`
+  })
+
+  const merchandiseCents = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0)
+
+  const addressLines = [
+    shipping.name,
+    shipping.address?.line1,
+    shipping.address?.line2,
+    [shipping.address?.city, shipping.address?.state, shipping.address?.postal_code]
+      .filter(Boolean)
+      .join(', '),
+    shipping.address?.country,
+  ].filter(Boolean)
+
+  const lines = [
+    'Thank you for your order from Robert Duncan Fine Art!',
+    '',
+    `Order: ${orderId}`,
+    '',
+    ...itemLines,
+    '',
+    `Subtotal: $${dollars(merchandiseCents)}`,
+    `Shipping: $${dollars(amounts.shippingCents)}`,
+    ...(amounts.taxCents > 0 ? [`Tax: $${dollars(amounts.taxCents)}`] : []),
+    `Total: $${dollars(amounts.amountPaidCents)}`,
+    '',
+    'Shipping to:',
+    ...addressLines,
+    '',
+    'Questions about your order? Just reply to this email.',
+  ].join('\n')
+
+  await sendEmail({
+    to: shipping.email,
+    subject: 'Your Robert Duncan Fine Art order confirmation',
+    text: lines,
+    from: config.resendFromEmailOrders as string | undefined,
+    replyTo: config.contactEmail as string | undefined,
+  }).catch((err) => {
+    console.error('[email:order-confirmation] send failed', { orderId, err })
+  })
 }

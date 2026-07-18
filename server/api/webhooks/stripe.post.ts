@@ -4,6 +4,8 @@ import { createSupabaseAdmin } from '../../utils/supabase'
 import {
   notifyOriginalPurchase,
   sendFulfillableOrderToShipStation,
+  sendOrderConfirmationEmail,
+  type OrderAmounts,
   type OrderItemRow,
   type ShippingInfo,
 } from '../../utils/fulfillment'
@@ -115,7 +117,7 @@ async function handleCheckoutCompleted(
 
   const { data: itemRows, error: itemsError } = await supabase
     .from('order_items')
-    .select('id, sanity_product_id, title_snapshot, media_type, size, frame_id, quantity, unit_price, sku_snapshot')
+    .select('id, sanity_product_id, title_snapshot, media_type, size, frame_id, frame_name_snapshot, quantity, unit_price, sku_snapshot')
     .eq('order_id', orderId)
 
   if (itemsError || !itemRows) {
@@ -129,6 +131,14 @@ async function handleCheckoutCompleted(
   // ShipStation. They differ in how SKUs were computed; the fulfillment util
   // picks the right one based on sku_snapshot.
   const shipStationItems = items.filter((i) => i.media_type !== 'original')
+
+  // Shared order-level totals for both ShipStation and the customer email —
+  // sourced from Stripe's own session so they're always what was charged.
+  const amounts: OrderAmounts = {
+    shippingCents: session.total_details?.amount_shipping ?? 0,
+    taxCents: session.total_details?.amount_tax ?? 0,
+    amountPaidCents: session.amount_total ?? 0,
+  }
 
   // Originals: notify Robert + mark the Sanity artwork recently_sold.
   if (originals.length > 0) {
@@ -154,8 +164,15 @@ async function handleCheckoutCompleted(
 
   // Prints + simple products: route to ShipStation (stubbed if creds absent).
   try {
-    await sendFulfillableOrderToShipStation(orderId, shipStationItems, shipping)
+    await sendFulfillableOrderToShipStation(orderId, shipStationItems, shipping, amounts)
   } catch (err) {
     console.error('[webhook] shipstation fulfillment error (order still confirmed)', { orderId, err })
+  }
+
+  // Order confirmation email to the customer, covering every item.
+  try {
+    await sendOrderConfirmationEmail(orderId, items, shipping, amounts)
+  } catch (err) {
+    console.error('[webhook] order confirmation email error (order still confirmed)', { orderId, err })
   }
 }

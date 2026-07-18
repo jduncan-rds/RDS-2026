@@ -121,6 +121,7 @@ export default defineEventHandler(async (event) => {
     media_type: string
     size: string | null
     frame_id: string | null
+    frame_name_snapshot: string | null
     quantity: number
     unit_price: number
     sku_snapshot: string | null
@@ -250,6 +251,7 @@ export default defineEventHandler(async (event) => {
       media_type: item.mediaType,
       size: item.size,
       frame_id: item.frameId,
+      frame_name_snapshot: item.frameName,
       quantity: item.quantity,
       unit_price: unitAmountCents,
       sku_snapshot: skuSnapshot,
