@@ -391,8 +391,8 @@ useSeoMeta({
 
         <!-- Original: simple price + buy -->
         <template v-if="isOriginal">
-          <p class="font-heading text-3xl text-brown mb-8">
-            ${{ product?.originalPrice != null ? formatUsd(product.originalPrice) : '' }}
+          <p v-if="artwork?.status !== 'archived' && product?.originalPrice != null" class="font-heading text-3xl text-brown mb-8">
+            ${{ formatUsd(product.originalPrice) }}
           </p>
           <div v-if="originalBuyable">
             <AppButton variant="primary" size="lg" class="w-full sm:w-auto" @click="addToCart">
@@ -409,6 +409,9 @@ useSeoMeta({
               {{ product.originalUnavailableNote }}
             </p>
           </div>
+          <p v-else-if="artwork?.status === 'archived'" class="font-ui text-xs tracking-widest uppercase text-brown/40">
+            This piece is archived and not currently available for purchase.
+          </p>
           <p v-else class="font-ui text-xs tracking-widest uppercase text-brown/40">This piece has been sold.</p>
         </template>
 
