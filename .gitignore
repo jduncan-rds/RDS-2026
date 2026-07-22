@@ -30,3 +30,5 @@ logs
 import-report.txt
 products_export.csv
 size-report.csv
+.vercel
+.env*

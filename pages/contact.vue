@@ -38,7 +38,7 @@ async function submit() {
       <!-- Success state -->
       <div v-if="state === 'success'" class="border border-sage/40 bg-sage/5 px-8 py-10">
         <p class="font-heading text-2xl text-brown mb-2">Message sent.</p>
-        <p class="font-body text-brown/70">Thank you for reaching out — Robert will be in touch soon.</p>
+        <p class="font-body text-brown/70">Thank you for reaching out — we will be in touch soon.</p>
         <button class="mt-6 font-ui text-xs tracking-widest uppercase text-brown/50 hover:text-brown transition-colors underline underline-offset-4" @click="state = 'idle'">
           Send another message
         </button>
