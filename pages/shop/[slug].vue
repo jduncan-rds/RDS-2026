@@ -52,8 +52,11 @@ interface Frame {
   mouldingInches?: number
 }
 
-const { data: product } = await useSanityQuery<ProductQueryResult>(groq`
-  *[_type == "product" && artwork->slug.current == $slug][0] {
+// An artwork can back more than one product doc — e.g. a painting sold both
+// as an Original and as a Print references the same artwork, so this array
+// can have >1 entry for one slug. Which one to show is resolved below.
+const { data: products } = await useSanityQuery<ProductQueryResult[]>(groq`
+  *[_type == "product" && artwork->slug.current == $slug] {
     _id,
     productType,
     originalPrice,
@@ -77,6 +80,24 @@ const { data: product } = await useSanityQuery<ProductQueryResult>(groq`
     }
   }
 `, { slug })
+
+// Callers that know which listing they came from (Originals vs Prints vs
+// Gifts) pass ?type=<productType> so we show the right one when an artwork
+// backs multiple products. Without it (old links, direct visits), fall back
+// to a fixed priority so the URL is at least deterministic.
+const requestedType = route.query.type as string | undefined
+const typePriority = ['original', 'print', 'calendar', 'card', 'gift']
+const product = computed(() => {
+  const list = products.value ?? []
+  if (!list.length) return null
+  if (requestedType) {
+    const match = list.find((p) => p.productType === requestedType)
+    if (match) return match
+  }
+  return [...list].sort(
+    (a, b) => typePriority.indexOf(a.productType) - typePriority.indexOf(b.productType),
+  )[0]
+})
 
 const { data: frames } = await useSanityQuery<Frame[]>(groq`
   *[_type == "frame"] | order(displayOrder asc) {

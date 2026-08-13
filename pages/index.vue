@@ -148,7 +148,7 @@ const quoteOnColor = computed(() =>
           :is-new="item.isNew"
           :status="item.productType === 'original' ? item.status : undefined"
           :eyebrow="productTypeLabels[item.productType]"
-          :to="`/shop/${item.slug}`"
+          :to="`/shop/${item.slug}?type=${item.productType}`"
         />
       </div>
     </section>

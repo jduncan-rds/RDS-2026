@@ -133,7 +133,7 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0 || sho
             :is-new="artwork.isNew"
             :artwork-id="artwork._id"
             status="available"
-            :to="`/shop/${artwork.slug}`"
+            :to="`/shop/${artwork.slug}?type=original`"
           />
         </div>
       </section>

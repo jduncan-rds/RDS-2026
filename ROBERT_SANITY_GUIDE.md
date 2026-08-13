@@ -171,3 +171,22 @@ A larger image banner (used in the shop).
 
 Text or call Josh. Nothing you do in Studio can take the site down — worst case, we
 just fix or undo the change together.
+
+---
+
+## Domain Names (Reference)
+
+The website answers to two domains:
+
+- **robertduncanfineart.com** — the main site address, registered/managed through
+  **Squarespace Domains**.
+- **robertduncan.art** — a second domain, registered/managed through **GoDaddy**,
+  set up to forward visitors to robertduncanfineart.com.
+
+You shouldn't need to touch either of these day-to-day — this is just here so you
+know where they live if a renewal notice shows up or something needs to change.
+
+## Email (Reference)
+
+The site's email addresses (4 total) are managed through **Google Workspace**, under
+the **jduncan@robertduncanfineart.com** account.

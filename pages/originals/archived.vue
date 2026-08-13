@@ -96,7 +96,7 @@ const hasActiveFilters = computed(() => activeCategories.value.length > 0)
           :title="artwork.title"
           :image="artwork.image"
           status="archived"
-          :to="`/shop/${artwork.slug}`"
+          :to="`/shop/${artwork.slug}?type=original`"
         />
       </div>
 

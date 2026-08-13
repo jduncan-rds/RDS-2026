@@ -12,6 +12,18 @@ const mediaTypeLabel: Record<string, string> = {
   simple: '',
 }
 
+// A painting can back both an Original and a Print product under the same
+// artwork slug — pass along which one this cart line actually is so
+// /shop/[slug] doesn't guess.
+function productLink(item: { artworkSlug: string; mediaType: string }) {
+  const type = item.mediaType === 'original'
+    ? 'original'
+    : ['open_edition', 'pod_paper', 'pod_canvas'].includes(item.mediaType)
+      ? 'print'
+      : null
+  return type ? `/shop/${item.artworkSlug}?type=${type}` : `/shop/${item.artworkSlug}`
+}
+
 const isCheckingOut = ref(false)
 const checkoutError = ref<string | null>(null)
 
@@ -88,7 +100,7 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
           class="flex gap-5 pb-6 border-b border-brown/10"
         >
           <!-- Thumbnail -->
-          <NuxtLink :to="`/shop/${item.artworkSlug}`" class="shrink-0">
+          <NuxtLink :to="productLink(item)" class="shrink-0">
             <img
               v-if="item.imageUrl"
               :src="item.imageUrl"
@@ -100,7 +112,7 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
 
           <!-- Details -->
           <div class="flex-1 min-w-0">
-            <NuxtLink :to="`/shop/${item.artworkSlug}`" class="font-heading text-lg text-brown hover:text-rust transition-colors">
+            <NuxtLink :to="productLink(item)" class="font-heading text-lg text-brown hover:text-rust transition-colors">
               {{ item.title }}
             </NuxtLink>
             <p

@@ -256,7 +256,7 @@ function startingPrice(product: any): number | null {
             :image="product.artwork?.image"
             :is-new="product.artwork?.isNew"
             :artwork-id="product.artwork?._id"
-            :to="`/shop/${product.artwork?.slug}`"
+            :to="`/shop/${product.artwork?.slug}?type=print`"
           />
           <p v-if="startingPrice(product)" class="font-ui text-xs text-brown/50 mt-1">
             From ${{ formatUsd(startingPrice(product)!) }}

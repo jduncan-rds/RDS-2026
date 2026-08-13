@@ -96,7 +96,7 @@ const typeLabel: Record<string, string> = {
             :title="product.artwork?.title"
             :image="product.artwork?.image"
             :artwork-id="product.artwork?._id"
-            :to="`/shop/${product.artwork?.slug}`"
+            :to="`/shop/${product.artwork?.slug}?type=${product.productType}`"
           />
           <div class="mt-1 flex items-baseline justify-between gap-3">
             <p class="font-ui text-[10px] tracking-widest uppercase text-brown/40">
