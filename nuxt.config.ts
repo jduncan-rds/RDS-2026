@@ -14,6 +14,20 @@ export default defineNuxtConfig({
   components: {
     dirs: [{ path: '~/components/ui', pathPrefix: false }],
   },
+  // 301s from the old WooCommerce store's URL scheme. Google still serves those
+  // paths and customers still have them bookmarked — they were landing on 404s
+  // for every painting. 301 (not 302) so the old pages' ranking transfers.
+  routeRules: {
+    // /product/<artwork-slug>/ -> /shop/<artwork-slug>  (same slugs, new prefix)
+    '/product/**': { redirect: { to: '/shop/**', statusCode: 301 } },
+    // WooCommerce category archives -> the print index
+    '/product-category/**': { redirect: { to: '/shop/prints', statusCode: 301 } },
+    // WooCommerce account pages
+    '/register': { redirect: { to: '/signup', statusCode: 301 } },
+    '/my-account': { redirect: { to: '/account', statusCode: 301 } },
+    '/my-account/**': { redirect: { to: '/account', statusCode: 301 } },
+  },
+
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxt/eslint',
