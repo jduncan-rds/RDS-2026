@@ -108,6 +108,16 @@ export interface OrderAmounts {
   amountPaidCents: number
 }
 
+/**
+ * Customs descriptions must be plain and specific — "artwork" or "gift" invites
+ * inspection and delay. Keep it concrete about what is physically in the box.
+ */
+function customsDescription(i: OrderItemRow): string {
+  if (i.media_type === 'simple') return i.title_snapshot || 'Printed calendar'
+  const medium = i.media_type === 'pod_canvas' ? 'canvas' : 'paper'
+  return `Unframed art print on ${medium}${i.size ? ` (${i.size} in)` : ''}`
+}
+
 export async function sendFulfillableOrderToShipStation(
   orderId: string,
   fulfillItems: OrderItemRow[],
@@ -120,7 +130,13 @@ export async function sendFulfillableOrderToShipStation(
   const key = config.shipstationApiKey as string | undefined
   const secret = config.shipstationApiSecret as string | undefined
 
-  const payload = {
+  // International (currently Canada only) requires a customs declaration or
+  // ShipStation cannot produce a label. Art City adds the package weight at
+  // ship time; everything else has to come from us.
+  const destCountry = (shipping.address?.country ?? 'US').toUpperCase()
+  const isInternational = destCountry !== 'US'
+
+  const payload: Record<string, unknown> = {
     orderNumber: orderId,
     orderDate: new Date().toISOString(),
     orderStatus: 'awaiting_shipment',
@@ -158,10 +174,29 @@ export async function sendFulfillableOrderToShipStation(
     })),
   }
 
+  if (isInternational) {
+    payload.internationalOptions = {
+      contents: 'merchandise',
+      nonDelivery: 'return_to_sender',
+      customsItems: fulfillItems.map((i) => ({
+        description: customsDescription(i),
+        quantity: i.quantity,
+        value: Number(dollars(i.unit_price)),
+        // US-origin goods enter Canada duty-free under CUSMA — worth declaring
+        // accurately, it's often the difference between $0 and a bill.
+        countryOfOrigin: 'US',
+        harmonizedTariffCode: i.media_type === 'simple' ? '4910.00' : '4911.91',
+      })),
+    }
+  }
+
   if (!key || !secret) {
+    // Serialize rather than passing the object: console.* only inspects two
+    // levels deep, which would hide `items` and `customsItems` — the whole
+    // reason this log exists.
     console.warn(
       '[fulfillment:shipstation] ShipStation not configured — fulfillment PENDING manual handling',
-      { orderId, payload },
+      `\norderId: ${orderId}\n${JSON.stringify(payload, null, 2)}`,
     )
     return
   }

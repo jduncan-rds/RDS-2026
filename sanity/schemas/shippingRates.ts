@@ -83,6 +83,18 @@ export const shippingRates = defineType({
       validation: (r) => r.min(0),
     }),
     defineField({
+      name: 'canadaEnabled',
+      title: 'Ship to Canada',
+      type: 'boolean',
+      description:
+        'Master switch for Canadian orders. While OFF, Canada is hidden from the cart ' +
+        'and refused at checkout. Turn ON only after the Zone 4 rates above are filled ' +
+        'in — any size left blank stays unavailable to Canada. Canada is limited to ' +
+        'calendars/cards/gifts and UNFRAMED prints; originals and framed pieces are ' +
+        'US-only and will block a Canadian order until removed from the cart.',
+      initialValue: false,
+    }),
+    defineField({
       name: 'notes',
       title: 'Internal Notes',
       type: 'text',

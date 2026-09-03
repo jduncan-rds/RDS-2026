@@ -5,7 +5,7 @@ import { createSupabaseAdmin } from '../utils/supabase'
 import { computeVariantPrice, computeFrameModifier, computePrintTotal } from '../../utils/pricing'
 import type { PricingRules, FramePricingData, PrintMediaType } from '../../utils/pricing'
 import { computeShippingCents } from '../utils/shipping'
-import { isValidState } from '../../utils/shipping'
+import { isValidDestination } from '../../utils/shipping'
 
 type CartItemKind = 'original' | PrintMediaType | 'simple'
 
@@ -30,13 +30,17 @@ export default defineEventHandler(async (event) => {
   const body = await readBody(event)
   const items: CartItemPayload[] = body?.items
   const shipState: string = body?.state
+  const shipCountry: string = (body?.country ?? 'US').toUpperCase()
 
   if (!Array.isArray(items) || items.length === 0) {
     throw createError({ statusCode: 400, statusMessage: 'Cart is empty.' })
   }
 
-  if (!isValidState(shipState)) {
-    throw createError({ statusCode: 400, statusMessage: 'A valid US shipping state is required.' })
+  if (!isValidDestination(shipCountry, shipState)) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'A valid shipping state or province is required.',
+    })
   }
 
   // Per-line quantity cap. Higher than any real order we expect (no one's
@@ -261,9 +265,13 @@ export default defineEventHandler(async (event) => {
   const merchandiseCents = orderItemRows.reduce((sum, r) => sum + r.unit_price * r.quantity, 0)
 
   // Authoritative shipping: recomputed server-side from the same items + the
-  // destination state (override-or-matrix, size band × zone). Mirrors the
-  // cart-page quote so the customer is charged what they were shown.
-  const { cents: shippingCents } = await computeShippingCents(
+  // destination (override-or-matrix, size band × zone). Mirrors the cart-page
+  // quote so the customer is charged what they were shown.
+  const {
+    cents: shippingCents,
+    ineligible,
+    canadaEnabled,
+  } = await computeShippingCents(
     sanity,
     orderItemRows.map((r) => ({
       productId: r.sanity_product_id,
@@ -272,9 +280,31 @@ export default defineEventHandler(async (event) => {
       frameId: r.frame_id,
       quantity: r.quantity,
       unitPriceDollars: r.unit_price / 100,
+      title: r.title_snapshot,
     })),
+    shipCountry,
     shipState,
   )
+
+  // Canada gates. The cart blocks these too, but this is the authoritative
+  // check — a client posting directly must not get past it.
+  if (shipCountry === 'CA') {
+    if (!canadaEnabled) {
+      throw createError({
+        statusCode: 409,
+        statusMessage: 'We are not shipping to Canada at this time.',
+      })
+    }
+    if (ineligible.length) {
+      throw createError({
+        statusCode: 409,
+        statusMessage:
+          'Some items in your cart cannot ship to Canada: ' +
+          ineligible.map((i) => i.title ?? 'item').join(', ') +
+          '. Please remove them to continue.',
+      })
+    }
+  }
 
   const orderTotalCents = merchandiseCents + shippingCents
 
@@ -364,7 +394,10 @@ export default defineEventHandler(async (event) => {
     payment_method_types: ['card'],
     line_items: lineItems,
     mode: 'payment',
-    shipping_address_collection: { allowed_countries: ['US'] },
+    // Pinned to the single country chosen on the cart page. Shipping was priced
+    // for that destination, so allowing the other one here would let a customer
+    // pay a US rate and enter a Canadian address (or vice versa).
+    shipping_address_collection: { allowed_countries: [shipCountry as 'US' | 'CA'] },
     // Shipping was computed authoritatively above from the destination state.
     // Present it as a single fixed rate so the customer sees it on Stripe's page
     // and it's included in amount_total.

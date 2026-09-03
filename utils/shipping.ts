@@ -1,11 +1,15 @@
 import { sqIn, selectBandKey, type PricingRules } from './pricing'
 
-export type ShippingZone = 1 | 2 | 3
+/** Zones 1–3 are US distance bands from Utah. Zone 4 is all of Canada. */
+export type ShippingZone = 1 | 2 | 3 | 4
+
+export type ShippingCountry = 'US' | 'CA'
 
 export interface ShippingZoneRow {
   zone1?: number
   zone2?: number
   zone3?: number
+  zone4?: number
 }
 
 export interface ShippingRates {
@@ -19,6 +23,8 @@ export interface ShippingRates {
   bandDUnframed?: ShippingZoneRow
   perAdditionalItem?: number
   freeShippingThreshold?: number
+  /** Master switch. Canada is refused everywhere until this is turned on. */
+  canadaEnabled?: boolean
 }
 
 /**
@@ -86,8 +92,36 @@ const ZONE_BY_STATE: Record<string, ShippingZone> = {}
   (s) => (ZONE_BY_STATE[s] = 3),
 )
 
+/** Canadian provinces + territories. All map to zone 4 — Canada is one zone. */
+export const CA_PROVINCES: { code: string; name: string }[] = [
+  { code: 'AB', name: 'Alberta' }, { code: 'BC', name: 'British Columbia' },
+  { code: 'MB', name: 'Manitoba' }, { code: 'NB', name: 'New Brunswick' },
+  { code: 'NL', name: 'Newfoundland and Labrador' }, { code: 'NT', name: 'Northwest Territories' },
+  { code: 'NS', name: 'Nova Scotia' }, { code: 'NU', name: 'Nunavut' },
+  { code: 'ON', name: 'Ontario' }, { code: 'PE', name: 'Prince Edward Island' },
+  { code: 'QC', name: 'Quebec' }, { code: 'SK', name: 'Saskatchewan' },
+  { code: 'YT', name: 'Yukon' },
+]
+
+const CA_PROVINCE_CODES = new Set(CA_PROVINCES.map((p) => p.code))
+
 export function isValidState(code: string | null | undefined): boolean {
   return !!code && code.toUpperCase() in ZONE_BY_STATE
+}
+
+export function isValidProvince(code: string | null | undefined): boolean {
+  return !!code && CA_PROVINCE_CODES.has(code.toUpperCase())
+}
+
+/** Validates a region code against its country. */
+export function isValidDestination(
+  country: string | null | undefined,
+  region: string | null | undefined,
+): boolean {
+  const c = (country ?? 'US').toUpperCase()
+  if (c === 'CA') return isValidProvince(region)
+  if (c === 'US') return isValidState(region)
+  return false
 }
 
 /** Map a state code to its zone. Unknown → farthest (3), a safe over-charge. */
@@ -95,20 +129,53 @@ export function stateToZone(state: string): ShippingZone {
   return ZONE_BY_STATE[state?.toUpperCase()] ?? 3
 }
 
-function zoneCost(row: ShippingZoneRow, zone: ShippingZone): number {
-  return (zone === 1 ? row.zone1 : zone === 2 ? row.zone2 : row.zone3) ?? 0
+/**
+ * Destination → zone. Every Canadian province is zone 4, so the province a
+ * customer picks never changes the price (and can't be gamed).
+ */
+export function destinationToZone(
+  country: string | null | undefined,
+  region: string,
+): ShippingZone {
+  return (country ?? 'US').toUpperCase() === 'CA' ? 4 : stateToZone(region)
 }
 
-/** Per-unit shipping in dollars for one line (override wins, else size×zone). */
-function perUnitShipping(
+/**
+ * Can this line ship to Canada? Originals (high declared value, art-specific
+ * customs) and framed prints/canvas are US-only. Unframed prints and simple
+ * goods (calendars/cards/gifts) are eligible.
+ *
+ * NB: deliberately keyed off mediaType rather than ShippingClass — that type
+ * lumps originals and simple goods together as 'other'.
+ */
+export const CANADA_FRAMEABLE_MEDIA = new Set(['open_edition', 'pod_paper', 'pod_canvas'])
+
+export function canShipToCanada(mediaType: string, frameId: string | null | undefined): boolean {
+  if (mediaType === 'original') return false
+  if (CANADA_FRAMEABLE_MEDIA.has(mediaType) && frameId) return false
+  return true
+}
+
+/**
+ * Zone amount for a row. Returns null when the cell is unset — callers must
+ * distinguish "not configured" from "free". For zone 4 an unset cell means the
+ * band is not offered to Canada; treating it as 0 would ship at a loss.
+ */
+function zoneAmount(row: ShippingZoneRow, zone: ShippingZone): number | null {
+  const v = zone === 1 ? row.zone1 : zone === 2 ? row.zone2 : zone === 3 ? row.zone3 : row.zone4
+  return v == null ? null : v
+}
+
+function zoneCost(row: ShippingZoneRow, zone: ShippingZone): number {
+  return zoneAmount(row, zone) ?? 0
+}
+
+/** Resolves the rate row a line draws from, after all band fallbacks. */
+function rowForLine(
   line: ShippingLineInput,
   rates: ShippingRates,
   rules: PricingRules,
-  zone: ShippingZone,
-): number {
-  if (line.shippingOverrideDollars != null && line.shippingOverrideDollars >= 0) {
-    return line.shippingOverrideDollars
-  }
+): ShippingZoneRow {
   const sizeStr = line.size ?? line.fallbackSize ?? null
   const area = sizeStr ? sqIn(sizeStr) : null
   // No usable size → smallest band.
@@ -124,7 +191,7 @@ function perUnitShipping(
         : key === 'C'
           ? rates.bandC
           : rates.bandD ?? rates.bandC) ?? {}
-  if (line.shippingClass !== 'unframed_print') return zoneCost(framedRow, zone)
+  if (line.shippingClass !== 'unframed_print') return framedRow
 
   const unframedRow =
     key === 'A'
@@ -134,17 +201,72 @@ function perUnitShipping(
         : key === 'C'
           ? rates.bandCUnframed
           : rates.bandDUnframed ?? rates.bandCUnframed
-  return zoneCost(unframedRow ?? framedRow, zone)
+  return unframedRow ?? framedRow
+}
+
+/**
+ * True when this line has no configured rate for the zone. Only meaningful for
+ * zone 4: a blank Canada cell means the band isn't offered there, NOT that it
+ * ships free. A per-product shippingOverride satisfies the requirement.
+ */
+export function isRateMissingForZone(
+  line: ShippingLineInput,
+  rates: ShippingRates | null,
+  rules: PricingRules | null,
+  zone: ShippingZone,
+): boolean {
+  if (!rates || !rules) return true
+  if (zone !== 4 && line.shippingOverrideDollars != null && line.shippingOverrideDollars >= 0) {
+    return false
+  }
+  const amount = zoneAmount(rowForLine(line, rates, rules), zone)
+  return amount == null || amount <= 0
+}
+
+/**
+ * Per-unit shipping in dollars for one line.
+ *
+ * A per-product Shipping Override is a DOMESTIC decision — it was set against
+ * US costs — so it is deliberately ignored for zone 4. Canada always prices off
+ * the Zone 4 matrix, and a product with an override but no Zone 4 rate is
+ * reported ineligible rather than shipped at the domestic price.
+ */
+function perUnitShipping(
+  line: ShippingLineInput,
+  rates: ShippingRates,
+  rules: PricingRules,
+  zone: ShippingZone,
+): number {
+  if (zone !== 4 && line.shippingOverrideDollars != null && line.shippingOverrideDollars >= 0) {
+    return line.shippingOverrideDollars
+  }
+  return zoneCost(rowForLine(line, rates, rules), zone)
+}
+
+/**
+ * Canada only: anything larger than Band B (16x20 = 320 sq in, Band B tops out
+ * at 385) ships rolled in its own tube and can't share a package. Band A/B
+ * prints and simple goods all fit one flat mailer together.
+ *
+ * Items without a size (calendars/cards/gifts) always travel in the flat mailer.
+ */
+function needsOwnPackageToCanada(line: ShippingLineInput, rules: PricingRules): boolean {
+  const sizeStr = line.size ?? line.fallbackSize ?? null
+  const area = sizeStr ? sqIn(sizeStr) : null
+  if (area == null) return false
+  const key = selectBandKey(rules, area)
+  return key === 'C' || key === 'D'
 }
 
 /**
  * Total order shipping in dollars. Free when the merchandise subtotal meets the
- * free-shipping threshold. Otherwise splits the order into two groups (see
- * ShippingClass) and adds their totals:
- *  - Framed prints/canvas: every unit's own shipping cost is summed.
- *  - Everything else (unframed prints/canvas, originals, simple goods): the
- *    single highest-shipping item in the group, plus the per-additional-item
- *    fee for every other unit in the group.
+ * free-shipping threshold. Otherwise splits the order into two groups and adds
+ * their totals:
+ *  - Own-package items — every unit's own shipping cost is summed. Framed
+ *    prints/canvas anywhere, plus (Canada only) anything above Band B, which
+ *    needs its own tube.
+ *  - Everything else — the single highest-shipping item in the group, plus the
+ *    per-additional-item fee for every other unit. These share one package.
  */
 export function computeOrderShippingDollars(
   lines: ShippingLineInput[],
@@ -158,16 +280,19 @@ export function computeOrderShippingDollars(
   const threshold = rates.freeShippingThreshold
   if (threshold && threshold > 0 && subtotal >= threshold) return 0
 
-  // Expand each line by quantity, bucketed by shipping group.
-  const framedCosts: number[] = []
+  // Expand each line by quantity, bucketed by whether it travels alone.
+  const ownPackageCosts: number[] = []
   const otherCosts: number[] = []
   for (const line of lines) {
     const cost = perUnitShipping(line, rates, rules, zone)
-    const bucket = line.shippingClass === 'framed_print' ? framedCosts : otherCosts
+    const ownPackage =
+      line.shippingClass === 'framed_print' ||
+      (zone === 4 && needsOwnPackageToCanada(line, rules))
+    const bucket = ownPackage ? ownPackageCosts : otherCosts
     for (let i = 0; i < line.quantity; i++) bucket.push(cost)
   }
 
-  const framedTotal = framedCosts.reduce((sum, cost) => sum + cost, 0)
+  const ownPackageTotal = ownPackageCosts.reduce((sum, cost) => sum + cost, 0)
 
   let otherTotal = 0
   if (otherCosts.length) {
@@ -177,5 +302,5 @@ export function computeOrderShippingDollars(
     otherTotal = highest + extraUnits * perExtra
   }
 
-  return framedTotal + otherTotal
+  return ownPackageTotal + otherTotal
 }

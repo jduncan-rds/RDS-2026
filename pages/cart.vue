@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { US_STATES } from '~/utils/shipping'
+import { US_STATES, CA_PROVINCES } from '~/utils/shipping'
 import { formatUsd } from '~/utils/pricing'
 
 const cart = useCartStore()
@@ -27,11 +27,31 @@ function productLink(item: { artworkSlug: string; mediaType: string }) {
 const isCheckingOut = ref(false)
 const checkoutError = ref<string | null>(null)
 
-// Shipping depends on destination, so the customer picks a state here (before
-// Stripe) and we quote it server-side. Checkout recomputes authoritatively.
+// Shipping depends on destination, so the customer picks a country + region
+// here (before Stripe) and we quote it server-side. Checkout recomputes
+// authoritatively and re-runs the same eligibility checks.
+const shipCountry = ref<'US' | 'CA'>('US')
 const shipState = ref<string>('')
 const shippingCents = ref<number | null>(null)
 const shippingLoading = ref(false)
+const shippingUnavailable = ref<string | null>(null)
+
+/** Canada is limited to calendars/cards/gifts and unframed prints. */
+interface IneligibleLine {
+  productId: string
+  title: string | null
+  reason: 'original' | 'framed' | 'no_rate'
+}
+const ineligible = ref<IneligibleLine[]>([])
+
+const regions = computed(() => (shipCountry.value === 'CA' ? CA_PROVINCES : US_STATES))
+const regionLabel = computed(() => (shipCountry.value === 'CA' ? 'province' : 'state'))
+
+const INELIGIBLE_REASON: Record<IneligibleLine['reason'], string> = {
+  original: 'original paintings ship within the US only',
+  framed: 'framed pieces ship within the US only',
+  no_rate: 'this size is not available to Canada',
+}
 
 const shippingDollars = computed(() =>
   shippingCents.value == null ? null : shippingCents.value / 100,
@@ -40,38 +60,73 @@ const grandTotal = computed(() => cart.total + (shippingDollars.value ?? 0))
 
 async function quoteShipping() {
   shippingCents.value = null
+  ineligible.value = []
+  shippingUnavailable.value = null
   if (!shipState.value || !cart.items.length) return
   shippingLoading.value = true
   try {
-    const { shippingCents: cents } = await $fetch<{ shippingCents: number }>('/api/shipping-quote', {
-      method: 'POST',
-      body: { state: shipState.value, items: cart.items },
-    })
-    shippingCents.value = cents
-  } catch {
+    const res = await $fetch<{ shippingCents: number; ineligible: IneligibleLine[] }>(
+      '/api/shipping-quote',
+      {
+        method: 'POST',
+        body: { country: shipCountry.value, state: shipState.value, items: cart.items },
+      },
+    )
+    shippingCents.value = res.shippingCents
+    ineligible.value = res.ineligible ?? []
+  } catch (err: any) {
     shippingCents.value = null
+    // Canada switched off in Sanity, or an invalid destination.
+    shippingUnavailable.value = err?.statusMessage ?? null
   } finally {
     shippingLoading.value = false
   }
 }
 
-// Re-quote when the state changes or the cart contents change.
-watch(shipState, quoteShipping)
-watch(() => cart.items.map((i) => `${i.productId}:${i.size}:${i.quantity}`).join('|'), () => {
-  if (shipState.value) quoteShipping()
+// Switching country invalidates the region choice (state codes aren't provinces).
+watch(shipCountry, () => {
+  shipState.value = ''
+  shippingCents.value = null
+  ineligible.value = []
+  shippingUnavailable.value = null
+  checkoutError.value = null
 })
+
+// Re-quote when the region changes or the cart contents change.
+watch(shipState, quoteShipping)
+watch(
+  () => cart.items.map((i) => `${i.productId}:${i.size}:${i.frameId}:${i.quantity}`).join('|'),
+  () => {
+    if (shipState.value) quoteShipping()
+  },
+)
+
+const canCheckout = computed(
+  () => !!shipState.value && !ineligible.value.length && !shippingUnavailable.value,
+)
 
 async function checkout() {
   if (!cart.items.length) return
   if (!shipState.value) {
-    checkoutError.value = 'Please select your shipping state to see shipping and continue.'
+    checkoutError.value = `Please select your shipping ${regionLabel.value} to see shipping and continue.`
+    return
+  }
+  if (ineligible.value.length) {
+    checkoutError.value = 'Please remove the items that cannot ship to Canada to continue.'
+    return
+  }
+  if (shippingUnavailable.value) {
+    checkoutError.value = shippingUnavailable.value
     return
   }
   checkoutError.value = null
   isCheckingOut.value = true
   // The /checkout page mounts the embedded Stripe form and creates the session
-  // (it needs the destination state to price shipping).
-  await navigateTo({ path: '/checkout', query: { state: shipState.value } })
+  // (it needs the destination to price shipping).
+  await navigateTo({
+    path: '/checkout',
+    query: { country: shipCountry.value, state: shipState.value },
+  })
 }
 
 useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
@@ -175,19 +230,53 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
             Ship to
           </label>
           <select
+            v-model="shipCountry"
+            class="w-full font-ui text-sm px-3 py-2 mb-2 bg-transparent border border-brown/40 text-brown focus:outline-none focus:border-brown"
+          >
+            <option value="US">United States</option>
+            <option value="CA">Canada</option>
+          </select>
+          <select
             v-model="shipState"
             class="w-full font-ui text-sm px-3 py-2 bg-transparent border border-brown/40 text-brown focus:outline-none focus:border-brown"
           >
-            <option value="" disabled>Select your state…</option>
-            <option v-for="s in US_STATES" :key="s.code" :value="s.code">{{ s.name }}</option>
+            <option value="" disabled>Select your {{ regionLabel }}…</option>
+            <option v-for="r in regions" :key="r.code" :value="r.code">{{ r.name }}</option>
           </select>
         </div>
+
+        <!-- Canada is limited to calendars/cards/gifts and unframed prints.
+             Checkout is blocked until the ineligible items are removed. -->
+        <div
+          v-if="ineligible.length"
+          class="mb-6 p-4 border border-rust/40 bg-rust/5"
+        >
+          <p class="font-body text-sm text-brown mb-2">
+            These items can’t ship to Canada. Please remove them to continue:
+          </p>
+          <ul class="font-ui text-xs text-brown/70 space-y-1">
+            <li v-for="item in ineligible" :key="item.productId + item.reason">
+              <span class="text-brown">{{ item.title ?? 'Item' }}</span>
+              — {{ INELIGIBLE_REASON[item.reason] }}
+            </li>
+          </ul>
+        </div>
+
+        <p
+          v-else-if="shippingUnavailable"
+          class="mb-6 p-4 border border-rust/40 bg-rust/5 font-body text-sm text-brown"
+        >
+          {{ shippingUnavailable }}
+        </p>
 
         <div class="flex justify-between mb-2">
           <span class="font-body text-brown/70">Shipping</span>
           <span class="font-body text-brown/80">
             <template v-if="!shipState">—</template>
             <template v-else-if="shippingLoading">…</template>
+            <!-- Blocked orders must not quote a price: the figure would only
+                 cover the shippable lines and changes once the cart is fixed. -->
+            <template v-else-if="ineligible.length || shippingUnavailable">—</template>
             <template v-else-if="shippingDollars === 0">Free</template>
             <template v-else-if="shippingDollars != null">${{ formatUsd(shippingDollars) }}</template>
             <template v-else>—</template>
@@ -197,11 +286,15 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
         <div class="flex justify-between items-baseline mt-4 pt-4 border-t border-brown/10 mb-2">
           <span class="font-body text-brown">Total</span>
           <span class="font-heading text-2xl text-brown">
-            ${{ formatUsd(shipState && shippingDollars != null ? grandTotal : cart.total) }}
+            ${{ formatUsd(canCheckout && shippingDollars != null ? grandTotal : cart.total) }}
           </span>
         </div>
         <p v-if="!shipState" class="font-ui text-xs text-brown/40 mb-8">
-          Select your state to calculate shipping. Taxes calculated at checkout.
+          Select your {{ regionLabel }} to calculate shipping. Taxes calculated at checkout.
+        </p>
+        <p v-else-if="shipCountry === 'CA'" class="font-ui text-xs text-brown/40 mb-8">
+          Ships USPS, typically 1–3 weeks. Any duties or taxes are collected by Canada
+          Post on delivery. Prices in USD.
         </p>
         <p v-else class="font-ui text-xs text-brown/40 mb-8">Taxes calculated at checkout.</p>
 
@@ -211,7 +304,7 @@ useSeoMeta({ title: 'Cart — Robert Duncan Fine Art' })
           variant="primary"
           size="lg"
           class="w-full"
-          :disabled="isCheckingOut"
+          :disabled="isCheckingOut || !canCheckout"
           @click="checkout"
         >
           {{ isCheckingOut ? 'Redirecting…' : 'Proceed to Checkout' }}

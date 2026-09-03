@@ -99,9 +99,11 @@ export const product = defineType({
       title: 'Shipping Override (USD)',
       type: 'number',
       description:
-        'Flat shipping cost for this product, regardless of size or destination. ' +
+        'Flat shipping cost for this product within the US, regardless of size or zone. ' +
         'Leave blank to calculate from the Shipping Rates matrix (size band × zone). ' +
-        'Enter 0 for free shipping on this product. Useful for originals (crate/freight).',
+        'Enter 0 for free shipping on this product. Useful for originals (crate/freight). ' +
+        'NOTE: this does NOT apply to Canada — Canadian orders always use the Zone 4 ' +
+        'rates in Shipping Rates.',
       validation: (r) => r.min(0),
     }),
     defineField({

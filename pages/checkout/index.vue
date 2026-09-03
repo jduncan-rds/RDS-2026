@@ -2,13 +2,14 @@
 import { loadStripe, type StripeEmbeddedCheckout } from '@stripe/stripe-js'
 
 // Embedded Stripe Checkout mounted on our own page. The cart sends the customer
-// here with ?state=XX (needed to price shipping). We create the session via
+// here with ?country=XX&state=YY (needed to price shipping). We create the session via
 // /api/checkout (which also pre-creates the pending order) and mount the form.
 const route = useRoute()
 const cart = useCartStore()
 const config = useRuntimeConfig()
 
 const shipState = computed(() => String(route.query.state ?? ''))
+const shipCountry = computed(() => String(route.query.country ?? 'US').toUpperCase())
 const error = ref<string | null>(null)
 let embedded: StripeEmbeddedCheckout | null = null
 
@@ -24,7 +25,7 @@ onMounted(async () => {
       fetchClientSecret: async () => {
         const { clientSecret } = await $fetch<{ clientSecret: string }>('/api/checkout', {
           method: 'POST',
-          body: { items: cart.items, state: shipState.value },
+          body: { items: cart.items, country: shipCountry.value, state: shipState.value },
         })
         return clientSecret
       },
